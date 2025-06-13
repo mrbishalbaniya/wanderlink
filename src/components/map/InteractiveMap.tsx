@@ -93,11 +93,10 @@ export default function InteractiveMap({
 
   // Effect for map creation, view, and base tile layer
   useEffect(() => {
-    if (typeof window === 'undefined' || !mapContainerRef.current) {
+    if (typeof window === 'undefined' || !mapContainerRef.current || mapRef.current) { // Prevent re-initialization
       return;
     }
 
-    // Initialize map
     const newMap = L.map(mapContainerRef.current).setView(center, zoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -115,17 +114,18 @@ export default function InteractiveMap({
       });
     }
     
-    // Invalidate size in case container was not fully ready
     newMap.invalidateSize();
 
 
     return () => {
-      newMap.remove();
+      if (mapRef.current) {
+        mapRef.current.remove();
+      }
       mapRef.current = null;
-      markersLayerRef.current = null; // Also clear this ref
+      markersLayerRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.toString(), zoom, onMapClick]); // center needs stable comparison, stringify or use separate states if mutable
+  }, [center.toString(), zoom, onMapClick]); // center needs stable comparison, stringify or use separate states if mutable. onMapClick should be stable via useCallback.
 
   // Effect for updating post markers
   useEffect(() => {
@@ -146,7 +146,7 @@ export default function InteractiveMap({
         markersLayerRef.current?.addLayer(marker);
       }
     });
-  }, [posts, onPostClick]); // Removed mapRef and markersLayerRef from deps as they are refs
+  }, [posts, onPostClick]);
 
   // Effect for selected location marker
   useEffect(() => {
@@ -154,13 +154,11 @@ export default function InteractiveMap({
       return;
     }
 
-    // Remove previous selected marker if it exists
     if (selectedMarkerRef.current) {
       mapRef.current.removeLayer(selectedMarkerRef.current);
       selectedMarkerRef.current = null;
     }
 
-    // Add new selected marker if location is provided
     if (selectedLocation) {
       const newSelectedMarker = L.marker(selectedLocation, { draggable: true })
         .addTo(mapRef.current)
@@ -173,9 +171,12 @@ export default function InteractiveMap({
       });
       
       selectedMarkerRef.current = newSelectedMarker;
-      mapRef.current.setView(selectedLocation, mapRef.current.getZoom());
+      
+      // If onMapClick is defined, this map is likely for selection, so zoom in.
+      const targetZoom = onMapClick ? 13 : mapRef.current.getZoom();
+      mapRef.current.setView(selectedLocation, targetZoom);
     }
-  }, [selectedLocation, onMapClick]); // Removed mapRef from deps
+  }, [selectedLocation, onMapClick]);
 
   return <div ref={mapContainerRef} className={cn('bg-muted rounded-lg shadow-md overflow-hidden', className)} />;
 }
