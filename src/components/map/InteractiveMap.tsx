@@ -146,10 +146,20 @@ export default function InteractiveMap({
           icon: createCustomIcon(post.category || 'other'),
         });
         
-        // Create popup content with a "View Details" link/button
-        const popupElement = L.DomUtil.create('div', 'custom-leaflet-popup p-1 min-w-[180px]'); // Added min-width
+        const popupElement = L.DomUtil.create('div', 'custom-leaflet-popup p-1 min-w-[180px]');
         
-        const titleEl = L.DomUtil.create('h3', 'font-bold text-sm mb-0.5', popupElement); // Adjusted text size
+        if (post.images && post.images.length > 0) {
+          const imgEl = L.DomUtil.create('img', '', popupElement);
+          imgEl.src = post.images[0];
+          imgEl.alt = post.title;
+          imgEl.style.width = '100%';
+          imgEl.style.maxHeight = '80px';
+          imgEl.style.objectFit = 'cover';
+          imgEl.style.borderRadius = '4px';
+          imgEl.style.marginBottom = '4px';
+        }
+        
+        const titleEl = L.DomUtil.create('h3', 'font-bold text-sm mb-0.5', popupElement);
         titleEl.innerText = post.title;
 
         const description = post.description.length > 70 ? post.description.substring(0, 70) + '...' : post.description;
@@ -160,14 +170,14 @@ export default function InteractiveMap({
           const buttonEl = L.DomUtil.create('button', 'text-primary text-xs hover:underline font-medium', popupElement);
           buttonEl.innerText = 'View Details →';
           L.DomEvent.on(buttonEl, 'click', (e) => {
-            L.DomEvent.stopPropagation(e); // Important to stop event from bubbling to map
+            L.DomEvent.stopPropagation(e); 
             onPostClick(post.id);
           });
         }
         
         marker.bindPopup(popupElement, {
           closeButton: true,
-          minWidth: 180, // Ensure popup has some minimum width
+          minWidth: 180, 
         });
         
         markersLayerRef.current?.addLayer(marker);
@@ -205,3 +215,4 @@ export default function InteractiveMap({
 
   return <div ref={mapContainerRef} className={cn('bg-muted rounded-lg shadow-md overflow-hidden', className)} />;
 }
+
