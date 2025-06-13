@@ -28,7 +28,7 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --radius: 0.75rem; /* Increased radius for more rounded corners */
     --sidebar-background: 120 60% 95%; /* Slightly darker Honeydew for sidebar */
     --sidebar-foreground: 146 25% 20%;
     --sidebar-primary: 146 50% 36%;
@@ -40,10 +40,9 @@
   }
 
   .dark {
-    /* Define dark theme variables if needed, for now maintain consistency or invert as appropriate */
     --background: 146 25% 10%; /* Dark Slate Green */
     --foreground: 120 60% 97%; /* Honeydew */
-    --card: 146 25% 15%;
+    --card: 146 25% 15%; /* Darker card for dark mode */
     --card-foreground: 120 60% 97%;
     --popover: 146 25% 15%;
     --popover-foreground: 120 60% 97%;
@@ -60,7 +59,7 @@
     --border: 146 20% 30%;
     --input: 146 20% 30%;
     --ring: 146 50% 40%;
-    --sidebar-background: 146 25% 12%;
+    --sidebar-background: 146 25% 8%; /* Even darker sidebar for dark mode */
     --sidebar-foreground: 120 60% 97%;
     --sidebar-primary: 146 50% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -77,15 +76,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'PT Sans', sans-serif; /* Ensuring body font is set */
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif; /* Ensuring headline font is set */
   }
 }
 
 /* Leaflet specific styles */
 .leaflet-popup-content-wrapper {
-  @apply bg-card text-card-foreground rounded-lg shadow-lg;
+  @apply bg-card/90 backdrop-blur-sm text-card-foreground rounded-lg shadow-lg;
 }
 .leaflet-popup-tip {
-  @apply bg-card;
+  @apply bg-card/90 backdrop-blur-sm;
 }
 .leaflet-popup-content {
   @apply text-sm;
