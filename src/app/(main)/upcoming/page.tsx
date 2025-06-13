@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function UpcomingFeedPage() {
+export default function UpcomingTripsPage() { // Renamed component function
   return (
     <div className="flex flex-col h-full">
       <div className="pb-4 sticky top-0 z-10 bg-background/80 dark:bg-background/70 backdrop-blur-md pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4 shadow-sm">
-        <h1 className="text-2xl font-headline text-primary">Upcoming Adventures</h1>
+        <h1 className="text-2xl font-headline text-primary">Upcoming Trips</h1> {/* Renamed title */}
         <p className="text-sm text-muted-foreground">Discover exciting trips and events planned for the future.</p>
       </div>
 
@@ -27,7 +27,7 @@ export default function UpcomingFeedPage() {
           </CardHeader>
           <CardContent className="py-10">
             <CalendarClock size={64} className="mx-auto text-muted-foreground/40 mb-6" />
-            <h2 className="text-xl font-semibold text-foreground mb-3">Upcoming Feed Coming Soon</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">Upcoming Trips Feature Coming Soon</h2> {/* Renamed heading */}
             <p className="text-muted-foreground mb-6">
               We're working on filtering adventures by their future dates. 
               For now, you can find all shared experiences in the main feed or on the global map.

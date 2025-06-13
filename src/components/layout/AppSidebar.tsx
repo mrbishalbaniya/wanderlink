@@ -29,8 +29,8 @@ import {
 import { cn } from '@/lib/utils'; 
 
 const navItems = [
-  { href: '/', label: 'Feed', icon: LayoutDashboard }, // Renamed from Dashboard
-  { href: '/upcoming', label: 'Upcoming Feed', icon: CalendarClock }, // New item
+  { href: '/', label: 'Feed', icon: LayoutDashboard }, 
+  { href: '/upcoming', label: 'Upcoming Trips', icon: CalendarClock }, // Renamed here
   { href: '/explore', label: 'Explore Trips', icon: Compass }, 
   { href: '/map', label: 'Global Map', icon: Globe },
   { href: '/match', label: 'Match', icon: HeartHandshake },
