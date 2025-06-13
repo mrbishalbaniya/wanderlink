@@ -1,17 +1,16 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
-import type { LatLng, LatLngTuple, Map as LeafletMapInstance } from 'leaflet'; // Added LeafletMapInstance
-import L from 'leaflet'; // Import L directly
-import 'leaflet.markercluster'; // Import for side effects
+import { useEffect, useRef, useState } from 'react';
+import type { LatLng, LatLngTuple, Map as LeafletMapInstance } from 'leaflet'; 
+import L from 'leaflet'; 
+import 'leaflet.markercluster'; 
 import type { Post, PostCategory } from '@/types';
-import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon } from 'lucide-react';
+import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon, Home } from 'lucide-react';
 import ReactDOMServer from 'react-dom/server';
 import { cn } from '@/lib/utils';
 
 // Fix default Leaflet icon paths if served locally
-// User must place these images in public/images/
 if (typeof window !== 'undefined') {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
@@ -32,13 +31,13 @@ const categoryIcons: Record<PostCategory, JSX.Element> = {
 };
 
 const categoryColors: Record<PostCategory, string> = {
-  hiking: '#008000', // Green
-  city: '#808080',   // Gray
-  beach: '#00BFFF',  // DeepSkyBlue
-  food: '#FFA500',   // Orange
-  culture: '#800080',// Purple
-  nature: '#228B22', // ForestGreen
-  other: '#FF4500',  // OrangeRed
+  hiking: '#008000', 
+  city: '#808080',   
+  beach: '#00BFFF',  
+  food: '#FFA500',   
+  culture: '#800080',
+  nature: '#228B22', 
+  other: '#FF4500',  
 };
 
 const createCustomIcon = (category: PostCategory): L.DivIcon => {
@@ -92,6 +91,11 @@ export default function InteractiveMap({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const markersLayerRef = useRef<L.MarkerClusterGroup | null>(null);
   const selectedMarkerRef = useRef<L.Marker | null>(null);
+  const userLocationMarkerRef = useRef<L.Marker | null>(null);
+
+  const [userLocation, setUserLocation] = useState<LatLngTuple | null>(null);
+  const [geolocationError, setGeolocationError] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (typeof window === 'undefined' || !mapContainerRef.current || mapRef.current) { 
@@ -121,7 +125,6 @@ export default function InteractiveMap({
     
     newMap.invalidateSize();
 
-
     return () => {
       if (mapRef.current) {
         if (setMapInstance) {
@@ -134,6 +137,63 @@ export default function InteractiveMap({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center.toString(), zoom, onMapClick, setMapInstance]); 
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          setGeolocationError(null);
+        },
+        (error) => {
+          console.error("Error getting user location:", error);
+          setGeolocationError(error.message || "Could not retrieve location. Please ensure location services are enabled.");
+          // Consider using a toast to inform the user if location access is denied or fails.
+        }
+      );
+    } else {
+      setGeolocationError("Geolocation is not supported by this browser.");
+    }
+  }, []); // Run once on mount to get user's location
+
+  useEffect(() => {
+    if (mapRef.current && userLocation) {
+      const userIcon = L.divIcon({
+        html: ReactDOMServer.renderToString(
+          <div style={{
+            backgroundColor: 'hsl(var(--primary))',
+            color: 'hsl(var(--primary-foreground))',
+            padding: '5px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            width: '28px',
+            height: '28px',
+            border: '2px solid hsl(var(--primary-foreground))'
+          }}>
+            <Home size={16} />
+          </div>
+        ),
+        className: 'custom-user-marker-icon', // Can add specific CSS if needed
+        iconSize: [28, 28],
+        iconAnchor: [14, 14], // Center the icon
+        popupAnchor: [0, -14]
+      });
+
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.setLatLng(userLocation);
+      } else {
+        userLocationMarkerRef.current = L.marker(userLocation, { icon: userIcon })
+          .addTo(mapRef.current)
+          .bindPopup("Your current location");
+      }
+      // Optionally, pan to user's location when first found
+      // mapRef.current.panTo(userLocation);
+    }
+  }, [userLocation]);
+
 
   useEffect(() => {
     if (!mapRef.current || !markersLayerRef.current) {
@@ -174,6 +234,16 @@ export default function InteractiveMap({
             onPostClick(post.id);
           });
         }
+
+        if (userLocation && post.coordinates) {
+          const directionsButtonEl = L.DomUtil.create('button', 'text-accent text-xs hover:underline font-medium mt-1.5 block w-full text-left', popupElement);
+          directionsButtonEl.innerText = 'Get Directions ↗';
+          L.DomEvent.on(directionsButtonEl, 'click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLocation[0]},${userLocation[1]}&destination=${post.coordinates.latitude},${post.coordinates.longitude}&travelmode=driving`;
+            window.open(mapsUrl, '_blank');
+          });
+        }
         
         marker.bindPopup(popupElement, {
           closeButton: true,
@@ -183,7 +253,7 @@ export default function InteractiveMap({
         markersLayerRef.current?.addLayer(marker);
       }
     });
-  }, [posts, onPostClick]);
+  }, [posts, onPostClick, userLocation]); // Add userLocation to dependency array for directions link
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -213,6 +283,13 @@ export default function InteractiveMap({
     }
   }, [selectedLocation, onMapClick]);
 
-  return <div ref={mapContainerRef} className={cn('bg-muted rounded-lg shadow-md overflow-hidden', className)} />;
+  return (
+    <>
+      <div ref={mapContainerRef} className={cn('bg-muted rounded-lg shadow-md overflow-hidden', className)} />
+      {geolocationError && (
+        <p className="text-xs text-destructive mt-1 text-center">{geolocationError}</p>
+      )}
+    </>
+  );
 }
 
