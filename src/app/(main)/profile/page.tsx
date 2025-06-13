@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea'; // Added Textarea
 import { useToast } from '@/hooks/use-toast';
 import { updateProfile as updateAuthProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
 import { useState, useEffect } from 'react';
-import { Loader2, Camera } from 'lucide-react'; // Removed Edit3
+import { Loader2, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ProfilePage() {
@@ -22,12 +23,14 @@ export default function ProfilePage() {
   const [name, setName] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [interestsInput, setInterestsInput] = useState(''); // State for interests textarea
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
       setName(userProfile.name);
       setAvatarPreview(userProfile.avatar);
+      setInterestsInput(userProfile.interests?.join(', ') || ''); // Populate interests
     }
   }, [userProfile]);
 
@@ -57,21 +60,29 @@ export default function ProfilePage() {
         photoURL: newAvatarUrl,
       });
 
+      const interestsArray = interestsInput.split(',').map(interest => interest.trim()).filter(interest => interest !== '');
+
       const userDocRef = doc(db, 'users', currentUser.uid);
       await updateDoc(userDocRef, {
         name: name,
         avatar: newAvatarUrl,
+        interests: interestsArray, // Save interests
       });
       
       if (userProfile) {
-        const updatedProfile = { ...userProfile, name, avatar: newAvatarUrl };
+        const updatedProfile = { 
+          ...userProfile, 
+          name, 
+          avatar: newAvatarUrl,
+          interests: interestsArray, // Update local profile context
+        };
          if (typeof updateAuthProviderProfile === 'function') {
             updateAuthProviderProfile(updatedProfile);
         }
       }
       setAvatarFile(null); 
 
-      toast({ title: 'Profile Updated', description: 'Your profile has been successfully updated.', className: 'bg-accent text-accent-foreground' }); // Using accent color for success
+      toast({ title: 'Profile Updated', description: 'Your profile has been successfully updated.', className: 'bg-accent text-accent-foreground' });
     } catch (error: any) {
       toast({ title: 'Update Failed', description: error.message || 'Could not update profile.', variant: 'destructive' });
     } finally {
@@ -81,7 +92,7 @@ export default function ProfilePage() {
   
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4"> {/* Adjusted height */}
+      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] p-4">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
@@ -103,10 +114,10 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto py-8 px-4 md:py-12">
-      <Card className="max-w-2xl mx-auto glassmorphic-card"> {/* Applied glassmorphic-card */}
+      <Card className="max-w-2xl mx-auto glassmorphic-card">
         <CardHeader className="text-center pb-4">
           <CardTitle className="font-headline text-4xl text-primary mb-2">Your Profile</CardTitle>
-          <CardDescription className="text-base text-muted-foreground">Manage your personal information and preferences.</CardDescription>
+          <CardDescription className="text-base text-muted-foreground">Manage your personal information, preferences, and interests.</CardDescription>
         </CardHeader>
         <CardContent className="pt-2">
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -133,13 +144,26 @@ export default function ProfilePage() {
               <Label htmlFor="email" className="text-md font-medium text-foreground/90">Email Address</Label>
               <Input id="email" type="email" value={userProfile.email} disabled className="text-base py-3 px-4 rounded-lg bg-muted/60 border-border/50 cursor-not-allowed shadow-sm" />
             </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="interests" className="text-md font-medium text-foreground/90">Your Interests</Label>
+              <Textarea 
+                id="interests" 
+                value={interestsInput} 
+                onChange={(e) => setInterestsInput(e.target.value)} 
+                placeholder="e.g., hiking, photography, museums, coding, cooking" 
+                rows={3}
+                className="text-base py-3 px-4 rounded-lg shadow-sm focus:ring-primary focus:border-primary bg-input"
+              />
+              <p className="text-xs text-muted-foreground">Separate interests with a comma.</p>
+            </div>
             
             <div className="space-y-3">
-              <Label className="text-md font-medium text-foreground/90">Joined WanderLink</Label> {/* Updated App Name */}
+              <Label className="text-md font-medium text-foreground/90">Joined WanderLink</Label>
               <p className="text-base text-muted-foreground pt-1">{joinedDate}</p>
             </div>
 
-            <Button type="submit" className="w-full text-lg py-3 rounded-lg shadow-md hover:shadow-lg transition-shadow bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isUpdating}> {/* Using accent for submit */}
+            <Button type="submit" className="w-full text-lg py-3 rounded-lg shadow-md hover:shadow-lg transition-shadow bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isUpdating}>
               {isUpdating ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -155,3 +179,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+
 import type { Timestamp, FieldValue } from 'firebase/firestore';
 
 export interface Coordinates {
@@ -28,6 +29,8 @@ export interface UserProfile {
   email: string;
   avatar: string;
   joinedAt: Timestamp | FieldValue;
+  interests?: string[]; // Added interests field
    // For client-side display, convert Timestamp to Date
   joinedAtDate?: Date;
 }
+
