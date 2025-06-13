@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from '@/lib/utils'; // Added missing import
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
