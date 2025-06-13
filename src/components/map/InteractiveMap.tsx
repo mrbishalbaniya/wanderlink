@@ -6,6 +6,7 @@ import 'leaflet.markercluster'; // Import for side effects
 import type { Post, PostCategory } from '@/types';
 import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon } from 'lucide-react';
 import ReactDOMServer from 'react-dom/server';
+import { cn } from '@/lib/utils'; // Added import
 
 // Fix default Leaflet icon paths if served locally
 // User must place these images in public/images/
