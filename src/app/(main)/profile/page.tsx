@@ -95,13 +95,13 @@ const profileSchema = z.object({
   bookPreferences: z.string().optional(), // Comma-separated
   currentLocationAddress: z.string().optional(),
   willingToTravelTo: z.string().optional(), // Comma-separated
-  maxTravelDistance: z.number().min(0).max(10000).optional(),
-  matchPreferences_ageRange: z.array(z.number()).length(2).optional(),
+  maxTravelDistance: z.number().min(0).max(10000).optional().nullable(),
+  matchPreferences_ageRange: z.array(z.number()).length(2).optional().nullable(),
   matchPreferences_genderPreference: z.array(z.enum(['men', 'women', 'everyone'])).optional(),
   matchPreferences_lookingFor: z.array(z.enum(['friendship', 'travel-buddy', 'dating', 'long-term-relationship', ''])).optional(),
   matchPreferences_smokingPreference: z.enum(['yes', 'no', 'ask', '']).optional(),
   matchPreferences_drinkingPreference: z.enum(['yes', 'no', 'ask', '']).optional(),
-  matchPreferences_petFriendly: z.boolean().optional(),
+  matchPreferences_petFriendly: z.boolean().optional().nullable(),
   matchPreferences_expensesPreference: z.enum(['yes', 'no', 'depends', '']).optional(),
   emergencyContact_name: z.string().optional(),
   emergencyContact_phone: z.string().optional(),
@@ -227,13 +227,13 @@ export default function ProfilePage() {
         bookPreferences: arrayToString(userProfile.bookPreferences),
         currentLocationAddress: userProfile.currentLocation?.address || '',
         willingToTravelTo: arrayToString(userProfile.willingToTravelTo),
-        maxTravelDistance: userProfile.maxTravelDistance || 500, // Default to 500km
+        maxTravelDistance: userProfile.maxTravelDistance ?? 500,
         matchPreferences_ageRange: userProfile.matchPreferences?.ageRange ? [userProfile.matchPreferences.ageRange.min, userProfile.matchPreferences.ageRange.max] : [18, 99],
         matchPreferences_genderPreference: userProfile.matchPreferences?.genderPreference || [],
         matchPreferences_lookingFor: userProfile.matchPreferences?.lookingFor || [],
         matchPreferences_smokingPreference: userProfile.matchPreferences?.smokingPreference || '',
         matchPreferences_drinkingPreference: userProfile.matchPreferences?.drinkingPreference || '',
-        matchPreferences_petFriendly: userProfile.matchPreferences?.petFriendly || false,
+        matchPreferences_petFriendly: userProfile.matchPreferences?.petFriendly ?? false,
         matchPreferences_expensesPreference: userProfile.matchPreferences?.expensesPreference || '',
         emergencyContact_name: userProfile.emergencyContact?.name || '',
         emergencyContact_phone: userProfile.emergencyContact?.phone || '',
@@ -313,67 +313,104 @@ export default function ProfilePage() {
       
       const dobTimestamp = data.dateOfBirth ? Timestamp.fromDate(data.dateOfBirth) : null;
 
-      const updatedFirestoreProfile: Partial<UserProfile> = {
+      const baseProfileUpdate: Partial<UserProfile> = {
         name: data.name,
-        username: data.username,
+        username: data.username || null,
         avatar: newAvatarUrl,
         dateOfBirth: dobTimestamp,
-        gender: data.gender as Gender,
-        interestedIn: data.interestedIn as InterestedIn[],
-        bio: data.bio,
-        phoneNumber: data.phoneNumber,
-        socialMediaLinks: data.socialMediaLinks,
-        travelStyles: data.travelStyles as TravelStyle[],
-        favoriteDestinations: stringToArray(data.favoriteDestinations),
-        bucketList: stringToArray(data.bucketList),
-        preferredTransportModes: data.preferredTransportModes as TransportMode[],
-        travelFrequency: data.travelFrequency,
-        travelAvailability: data.travelAvailability,
-        travelBudgetRange: data.travelBudgetRange,
-        interests: stringToArray(data.interests),
-        languagesSpoken: stringToArray(data.languagesSpoken),
-        musicPreferences: stringToArray(data.musicPreferences),
-        moviePreferences: stringToArray(data.moviePreferences),
-        bookPreferences: stringToArray(data.bookPreferences),
-        currentLocation: {
-          address: data.currentLocationAddress || '',
-          ...(currentLocationCoords && { coordinates: { latitude: currentLocationCoords[0], longitude: currentLocationCoords[1] } })
+        gender: data.gender || null,
+        interestedIn: data.interestedIn?.length ? data.interestedIn : null,
+        bio: data.bio || null,
+        phoneNumber: data.phoneNumber || null,
+        socialMediaLinks: {
+          instagram: data.socialMediaLinks?.instagram || null,
+          linkedin: data.socialMediaLinks?.linkedin || null,
+          twitter: data.socialMediaLinks?.twitter || null,
+          facebook: data.socialMediaLinks?.facebook || null,
+          tiktok: data.socialMediaLinks?.tiktok || null,
+          website: data.socialMediaLinks?.website || null,
         },
-        willingToTravelTo: stringToArray(data.willingToTravelTo),
-        maxTravelDistance: data.maxTravelDistance,
-        matchPreferences: {
-          ageRange: data.matchPreferences_ageRange ? { min: data.matchPreferences_ageRange[0], max: data.matchPreferences_ageRange[1] } : undefined,
-          genderPreference: data.matchPreferences_genderPreference as InterestedIn[],
-          lookingFor: data.matchPreferences_lookingFor as LookingFor[],
-          smokingPreference: data.matchPreferences_smokingPreference as SimplePreference,
-          drinkingPreference: data.matchPreferences_drinkingPreference as SimplePreference,
-          petFriendly: data.matchPreferences_petFriendly,
-          expensesPreference: data.matchPreferences_expensesPreference as ExpensePreference,
-        },
+        travelStyles: data.travelStyles?.length ? data.travelStyles : null,
+        favoriteDestinations: stringToArray(data.favoriteDestinations).length ? stringToArray(data.favoriteDestinations) : null,
+        bucketList: stringToArray(data.bucketList).length ? stringToArray(data.bucketList) : null,
+        preferredTransportModes: data.preferredTransportModes?.length ? data.preferredTransportModes : null,
+        travelFrequency: data.travelFrequency || null,
+        travelAvailability: data.travelAvailability || null,
+        travelBudgetRange: data.travelBudgetRange || null,
+        interests: stringToArray(data.interests).length ? stringToArray(data.interests) : null,
+        languagesSpoken: stringToArray(data.languagesSpoken).length ? stringToArray(data.languagesSpoken) : null,
+        musicPreferences: stringToArray(data.musicPreferences).length ? stringToArray(data.musicPreferences) : null,
+        moviePreferences: stringToArray(data.moviePreferences).length ? stringToArray(data.moviePreferences) : null,
+        bookPreferences: stringToArray(data.bookPreferences).length ? stringToArray(data.bookPreferences) : null,
+        willingToTravelTo: stringToArray(data.willingToTravelTo).length ? stringToArray(data.willingToTravelTo) : null,
+        maxTravelDistance: (data.maxTravelDistance !== undefined && data.maxTravelDistance !== null) ? data.maxTravelDistance : null,
         emergencyContact: {
-          name: data.emergencyContact_name,
-          phone: data.emergencyContact_phone,
-          relationship: data.emergencyContact_relationship,
+          name: data.emergencyContact_name || null,
+          phone: data.emergencyContact_phone || null,
+          relationship: data.emergencyContact_relationship || null,
         },
-        idVerificationImageUrl: newIdVerificationUrl,
+        idVerificationImageUrl: newIdVerificationUrl || null,
         lastUpdated: serverTimestamp(),
       };
-      
-      const tempUpdatedProfileForCalc = { ...userProfile, ...updatedFirestoreProfile, dateOfBirthDate: data.dateOfBirth } as UserProfile;
-      updatedFirestoreProfile.profileCompletionScore = calculateProfileCompletion(tempUpdatedProfileForCalc);
 
+      // Explicitly construct currentLocation
+      let finalCurrentLocation: UserProfile['currentLocation'] | null = null;
+      const formAddress = data.currentLocationAddress || ''; // Ensure it's a string, even if empty
+      if (formAddress || currentLocationCoords) {
+          finalCurrentLocation = { address: formAddress }; // Address can be empty string
+          if (currentLocationCoords && typeof currentLocationCoords[0] === 'number' && typeof currentLocationCoords[1] === 'number') {
+              finalCurrentLocation.coordinates = { latitude: currentLocationCoords[0], longitude: currentLocationCoords[1] };
+          }
+      }
+      baseProfileUpdate.currentLocation = finalCurrentLocation;
+
+
+      // Explicitly construct matchPreferences
+      let finalMatchPreferences: UserProfile['matchPreferences'] | null = null;
+      const {
+        matchPreferences_ageRange, matchPreferences_genderPreference, matchPreferences_lookingFor,
+        matchPreferences_smokingPreference, matchPreferences_drinkingPreference,
+        matchPreferences_petFriendly, matchPreferences_expensesPreference
+      } = data;
+
+      if (matchPreferences_ageRange || matchPreferences_genderPreference?.length || matchPreferences_lookingFor?.length || matchPreferences_smokingPreference || matchPreferences_drinkingPreference || matchPreferences_petFriendly !== undefined || matchPreferences_expensesPreference) {
+          finalMatchPreferences = {};
+          if (matchPreferences_ageRange && matchPreferences_ageRange.length === 2) {
+              finalMatchPreferences.ageRange = { min: matchPreferences_ageRange[0], max: matchPreferences_ageRange[1] };
+          } else {
+              finalMatchPreferences.ageRange = null; 
+          }
+          finalMatchPreferences.genderPreference = matchPreferences_genderPreference?.length ? matchPreferences_genderPreference : null;
+          finalMatchPreferences.lookingFor = matchPreferences_lookingFor?.length ? matchPreferences_lookingFor : null;
+          finalMatchPreferences.smokingPreference = matchPreferences_smokingPreference || null;
+          finalMatchPreferences.drinkingPreference = matchPreferences_drinkingPreference || null;
+          finalMatchPreferences.petFriendly = (matchPreferences_petFriendly !== undefined && matchPreferences_petFriendly !== null) ? matchPreferences_petFriendly : null;
+          finalMatchPreferences.expensesPreference = matchPreferences_expensesPreference || null;
+      }
+      baseProfileUpdate.matchPreferences = finalMatchPreferences;
+      
+      const tempUpdatedProfileForCalc = { ...userProfile, ...baseProfileUpdate, dateOfBirthDate: data.dateOfBirth } as UserProfile;
+      baseProfileUpdate.profileCompletionScore = calculateProfileCompletion(tempUpdatedProfileForCalc);
+
+      // Filter out top-level undefined values explicitly before sending to Firestore
+      const finalUpdateData: Record<string, any> = {};
+      for (const [key, value] of Object.entries(baseProfileUpdate)) {
+          if (value !== undefined) {
+              finalUpdateData[key] = value;
+          }
+      }
 
       await updateAuthProfile(currentUser, { displayName: data.name, photoURL: newAvatarUrl });
       const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, updatedFirestoreProfile);
+      await updateDoc(userDocRef, finalUpdateData);
       
       if (typeof updateAuthProviderProfile === 'function') {
         const fullyUpdatedProfile = { 
             ...userProfile, 
-            ...updatedFirestoreProfile, 
+            ...finalUpdateData, 
             dateOfBirthDate: data.dateOfBirth, 
             lastUpdatedDate: new Date(), 
-        } as UserProfile;
+        } as UserProfile; // Cast might need adjustment based on finalUpdateData structure
         updateAuthProviderProfile(fullyUpdatedProfile);
       }
       setAvatarFile(null);
@@ -465,7 +502,7 @@ export default function ProfilePage() {
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="gender" render={({ field }) => (
-                    <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select your gender" /></SelectTrigger></FormControl>
                         <SelectContent>
                           {genderOptions.map(g => <SelectItem key={g} value={g}>{g.charAt(0).toUpperCase() + g.slice(1)}</SelectItem>)}
@@ -563,7 +600,7 @@ export default function ProfilePage() {
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="travelFrequency" render={({ field }) => (
-                    <FormItem><FormLabel>Travel Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormItem><FormLabel>Travel Frequency</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl><SelectTrigger><SelectValue placeholder="How often do you travel?" /></SelectTrigger></FormControl>
                         <SelectContent>{travelFrequencyOptions.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
@@ -571,7 +608,7 @@ export default function ProfilePage() {
                     <FormItem><FormLabel>Typical Travel Availability</FormLabel><FormControl><Input placeholder="e.g., Weekends, Long weekends, Summer holidays" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                    <FormField control={form.control} name="travelBudgetRange" render={({ field }) => (
-                    <FormItem><FormLabel>Typical Travel Budget</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormItem><FormLabel>Typical Travel Budget</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select your typical budget" /></SelectTrigger></FormControl>
                         <SelectContent>{travelBudgetOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
@@ -623,8 +660,8 @@ export default function ProfilePage() {
                   )} />
                   <Controller control={form.control} name="maxTravelDistance" render={({ field }) => (
                     <FormItem><FormLabel>Max Travel Distance for Short Trips (km)</FormLabel>
-                      <FormControl><Slider defaultValue={[field.value || 500]} value={[field.value || 500]} max={10000} step={50} onValueChange={(value) => field.onChange(value[0])} /></FormControl>
-                      <FormDescription>Current: {field.value || 500} km</FormDescription><FormMessage />
+                      <FormControl><Slider value={field.value ? [field.value] : [500]} max={10000} step={50} onValueChange={(value) => field.onChange(value[0])} /></FormControl>
+                      <FormDescription>Current: {field.value ?? 500} km</FormDescription><FormMessage />
                     </FormItem>
                   )} />
                 </CardContent>
@@ -636,7 +673,7 @@ export default function ProfilePage() {
                 <CardContent className="space-y-6">
                    <Controller control={form.control} name="matchPreferences_ageRange" render={({ field }) => (
                     <FormItem><FormLabel>Preferred Age Range</FormLabel>
-                      <FormControl><Slider defaultValue={field.value || [18,99]} value={field.value || [18,99]} min={18} max={99} step={1} onValueChange={field.onChange} /></FormControl>
+                      <FormControl><Slider value={field.value || [18,99]} min={18} max={99} step={1} onValueChange={field.onChange} /></FormControl>
                       <FormDescription>Current: {field.value ? `${field.value[0]} - ${field.value[1]}` : "18 - 99"} years</FormDescription><FormMessage />
                     </FormItem>
                   )} />
@@ -673,12 +710,12 @@ export default function ProfilePage() {
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="matchPreferences_smokingPreference" render={({ field }) => (
-                    <FormItem><FormLabel>Smoking Preference (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormItem><FormLabel>Smoking Preference (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select preference" /></SelectTrigger></FormControl>
                         <SelectContent>{simplePreferenceOptions.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="matchPreferences_drinkingPreference" render={({ field }) => (
-                    <FormItem><FormLabel>Drinking Preference (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormItem><FormLabel>Drinking Preference (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select preference" /></SelectTrigger></FormControl>
                         <SelectContent>{simplePreferenceOptions.map(d => <SelectItem key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
@@ -686,11 +723,11 @@ export default function ProfilePage() {
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-input/30"><div className="space-y-0.5">
                         <FormLabel>Are you pet-friendly for travel?</FormLabel>
                         <FormDescription>Do you mind traveling with or around pets?</FormDescription>
-                      </div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                      </div><FormControl><Switch checked={field.value ?? false} onCheckedChange={field.onChange} /></FormControl>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="matchPreferences_expensesPreference" render={({ field }) => (
-                    <FormItem><FormLabel>Willing to Share Expenses (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormItem><FormLabel>Willing to Share Expenses (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select preference" /></SelectTrigger></FormControl>
                         <SelectContent>{expensePreferenceOptions.map(e => <SelectItem key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
@@ -753,3 +790,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
