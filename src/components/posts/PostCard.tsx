@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MapPin } from 'lucide-react'; // Added MapPin
 import type { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -18,19 +18,22 @@ import { useState, useEffect } from 'react';
 interface PostCardProps {
   post: Post;
   onLikeUpdate?: (postId: string, newLikes: string[]) => void;
+  onSaveUpdate?: (postId: string, newSavedBy: string[]) => void; // Added for save feature
 }
 
-export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
+export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardProps) {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
-  const [isLiked, setIsLiked] = useState(() => currentUser ? post.likes.includes(currentUser.uid) : false);
-  const [likeCount, setLikeCount] = useState(post.likes.length);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    setIsLiked(currentUser ? post.likes.includes(currentUser.uid) : false);
-    setLikeCount(post.likes.length);
-  }, [post.likes, currentUser]);
+    setIsLiked(currentUser && post.likes ? post.likes.includes(currentUser.uid) : false);
+    setLikeCount(post.likes ? post.likes.length : 0);
+    setIsSaved(currentUser && post.savedBy ? post.savedBy.includes(currentUser.uid) : false);
+  }, [post.likes, post.savedBy, currentUser]);
 
 
   const handleLike = async () => {
@@ -40,44 +43,72 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
     }
     const postRef = doc(db, 'posts', post.id);
     const newLikedStatus = !isLiked;
-    const newLikeCount = newLikedStatus ? likeCount + 1 : likeCount - 1;
-
-    setIsLiked(newLikedStatus);
-    setLikeCount(newLikeCount);
     
-    let updatedLikesArray: string[];
-    if (newLikedStatus) {
-        updatedLikesArray = [...post.likes, currentUser.uid];
-    } else {
-        updatedLikesArray = post.likes.filter(uid => uid !== currentUser.uid);
-    }
-    if(onLikeUpdate) {
-        onLikeUpdate(post.id, updatedLikesArray);
-    }
+    // Optimistically update UI
+    setIsLiked(newLikedStatus);
+    setLikeCount(prevCount => newLikedStatus ? prevCount + 1 : prevCount - 1);
+    
+    const updatedLikesArray = newLikedStatus
+      ? arrayUnion(currentUser.uid)
+      : arrayRemove(currentUser.uid);
 
     try {
-      if (newLikedStatus) {
-        await updateDoc(postRef, {
-          likes: arrayUnion(currentUser.uid)
-        });
-      } else {
-        await updateDoc(postRef, {
-          likes: arrayRemove(currentUser.uid)
-        });
+      await updateDoc(postRef, { likes: updatedLikesArray });
+      if (onLikeUpdate) {
+        // Fetch the updated post to get the true state of likes array or construct it
+        const currentLikes = post.likes || [];
+        const finalLikes = newLikedStatus 
+            ? [...currentLikes, currentUser.uid] 
+            : currentLikes.filter(uid => uid !== currentUser.uid);
+        onLikeUpdate(post.id, finalLikes);
       }
     } catch (error) {
       console.error("Error updating like:", error);
       toast({ title: "Error", description: "Could not update like status.", variant: "destructive" });
+      // Revert UI on error
       setIsLiked(!newLikedStatus);
-      setLikeCount(isLiked ? likeCount -1 : likeCount + 1);
-      if(onLikeUpdate) onLikeUpdate(post.id, post.likes);
+      setLikeCount(prevCount => newLikedStatus ? prevCount -1 : prevCount + 1);
     }
   };
+
+  const handleSave = async () => {
+    if (!currentUser) {
+      toast({ title: "Authentication Required", description: "Please login to save posts.", variant: "destructive" });
+      return;
+    }
+    const postRef = doc(db, 'posts', post.id);
+    const newSavedStatus = !isSaved;
+
+    // Optimistically update UI
+    setIsSaved(newSavedStatus);
+
+    const updatedSavedByArray = newSavedStatus
+        ? arrayUnion(currentUser.uid)
+        : arrayRemove(currentUser.uid);
+    
+    try {
+        await updateDoc(postRef, { savedBy: updatedSavedByArray });
+        if (onSaveUpdate) {
+            const currentSavedBy = post.savedBy || [];
+            const finalSavedBy = newSavedStatus
+                ? [...currentSavedBy, currentUser.uid]
+                : currentSavedBy.filter(uid => uid !== currentUser.uid);
+            onSaveUpdate(post.id, finalSavedBy);
+        }
+    } catch (error) {
+        console.error("Error updating save status:", error);
+        toast({ title: "Error", description: "Could not update save status.", variant: "destructive" });
+        // Revert UI on error
+        setIsSaved(!newSavedStatus);
+    }
+  };
+
 
   const postDate = post.createdAtDate || (post.createdAt instanceof Date ? post.createdAt : post.createdAt?.toDate());
   const timeAgo = postDate ? formatDistanceToNow(postDate, { addSuffix: true }) : 'Unknown date';
   const userName = post.user?.name || 'Anonymous';
   const userAvatar = post.user?.avatar || `https://placehold.co/40x40.png?text=${userName.charAt(0)}`;
+  const userLocation = post.user?.currentLocation?.address || null;
 
   return (
     <Card className="w-full overflow-hidden glassmorphic-card">
@@ -86,11 +117,18 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
           <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait" />
           <AvatarFallback className="text-lg bg-muted text-muted-foreground">{userName.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
-        <div>
-          <CardTitle className="text-xl font-headline font-semibold">{post.title}</CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            Posted by {userName} &bull; {timeAgo} &bull; {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
-          </CardDescription>
+        <div className="flex-1 min-w-0">
+          <CardTitle className="text-lg font-headline font-semibold">{post.title}</CardTitle>
+          <div className="text-xs text-muted-foreground">
+            <span>By {userName}</span>
+            {userLocation && (
+                <span className="flex items-center truncate">
+                    <MapPin size={12} className="mr-1 flex-shrink-0" /> 
+                    <span className="truncate" title={userLocation}>{userLocation}</span>
+                </span>
+            )}
+            <span>{timeAgo} &bull; {post.category.charAt(0).toUpperCase() + post.category.slice(1)}</span>
+          </div>
         </div>
       </CardHeader>
       {post.images && post.images.length > 0 && (
@@ -136,8 +174,8 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
           </Button>
         </div>
         <div className="flex space-x-1 md:space-x-2">
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-            <Bookmark className="h-5 w-5 text-foreground/70" /> 
+          <Button variant="ghost" size="icon" onClick={handleSave} className="text-muted-foreground hover:text-primary">
+            <Bookmark className={`h-5 w-5 ${isSaved ? 'fill-accent text-accent' : 'text-foreground/70'}`} /> 
             <span className="sr-only">Save</span>
           </Button>
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">

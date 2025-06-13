@@ -19,6 +19,7 @@ export interface Post {
   images: string[];
   createdAt: Timestamp | Date; 
   likes: string[]; 
+  savedBy?: string[]; // Added for save/favorite feature
   createdAtDate?: Date; 
 }
 
@@ -83,22 +84,22 @@ export interface UserProfile {
 
   // Section 6: Match Preferences
   matchPreferences?: {
-    ageRange?: { min: number; max: number };
-    genderPreference?: InterestedIn[]; // Who they are looking for in matches
-    lookingFor?: LookingFor[]; // e.g., ["friendship", "travel-buddy"]
-    smokingPreference?: SimplePreference;
-    drinkingPreference?: SimplePreference;
-    petFriendly?: boolean;
-    expensesPreference?: ExpensePreference;
+    ageRange?: { min: number; max: number } | null; // Made ageRange potentially null
+    genderPreference?: InterestedIn[] | null; // Who they are looking for in matches
+    lookingFor?: LookingFor[] | null; // e.g., ["friendship", "travel-buddy"]
+    smokingPreference?: SimplePreference | null;
+    drinkingPreference?: SimplePreference | null;
+    petFriendly?: boolean | null;
+    expensesPreference?: ExpensePreference | null;
   };
 
   // Section 7: Safety & Trust
-  idVerificationImageUrl?: string; // URL of uploaded ID (Cloudinary)
+  idVerificationImageUrl?: string | null; // URL of uploaded ID (Cloudinary)
   isIdVerified?: boolean; // Admin flag
   emergencyContact?: {
-    name?: string;
-    phone?: string;
-    relationship?: string;
+    name?: string | null;
+    phone?: string | null;
+    relationship?: string | null;
   };
   // tripHistory?: any[]; // Array of trip IDs or summary objects - derived data
   // reviewsReceived?: any[]; // Array of review IDs or summary objects - derived data
@@ -109,12 +110,12 @@ export interface UserProfile {
 
   // Timestamps
   joinedAt: Timestamp | FieldValue;
-  lastUpdated?: Timestamp | FieldValue;
+  lastUpdated?: Timestamp | FieldValue | null; // Make lastUpdated potentially null
 
   // For client-side display, convert Timestamp to Date
   joinedAtDate?: Date;
-  dateOfBirthDate?: Date;
-  lastUpdatedDate?: Date;
+  dateOfBirthDate?: Date | null;
+  lastUpdatedDate?: Date | null;
 }
 
 

@@ -4,7 +4,7 @@
 import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
 import type { Post, UserProfile } from '@/types';
-import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore'; // Changed getDocs to onSnapshot
 import { useEffect, useState, useCallback } from 'react';
 import { Loader2, Compass } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,21 +19,20 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function HomePage() { // Renamed from ExplorePage to HomePage
+export default function HomePage() { 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const fetchPosts = useCallback(async () => {
+  useEffect(() => {
     setLoading(true);
-    try {
-      const postsCollection = collection(db, 'posts');
-      const q = query(postsCollection, orderBy('createdAt', 'desc'));
-      const postsSnapshot = await getDocs(q);
-      
-      const postsData = await Promise.all(postsSnapshot.docs.map(async (docSnapshot) => {
+    const postsCollection = collection(db, 'posts');
+    const q = query(postsCollection, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      const postsData = await Promise.all(querySnapshot.docs.map(async (docSnapshot) => {
         const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
         
         if (post.createdAt && typeof (post.createdAt as Timestamp).toDate === 'function') {
@@ -50,21 +49,22 @@ export default function HomePage() { // Renamed from ExplorePage to HomePage
             if (post.user.joinedAt && typeof (post.user.joinedAt as Timestamp).toDate === 'function') {
               post.user.joinedAtDate = (post.user.joinedAt as Timestamp).toDate();
             }
+             if (post.user.dateOfBirth && typeof (post.user.dateOfBirth as Timestamp).toDate === 'function') {
+              post.user.dateOfBirthDate = (post.user.dateOfBirth as Timestamp).toDate();
+            }
           }
         }
         return post;
       }));
       setPosts(postsData);
-    } catch (error) {
-      console.error("Error fetching posts for explore page:", error);
-    } finally {
       setLoading(false);
-    }
-  }, []);
+    }, (error) => {
+      console.error("Error fetching posts with onSnapshot:", error);
+      setLoading(false);
+    });
 
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    return () => unsubscribe(); // Cleanup subscription on unmount
+  }, []);
 
   useEffect(() => {
     if (!loading && posts.length > 0) {
@@ -82,7 +82,7 @@ export default function HomePage() { // Renamed from ExplorePage to HomePage
     setSelectedPost(post);
   }, []);
 
-  const handleLikeUpdateInExplore = useCallback((postId: string, newLikes: string[]) => {
+  const handleLikeUpdateInHome = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
       currentPosts.map(p => 
         p.id === postId ? { ...p, likes: newLikes } : p
@@ -92,6 +92,18 @@ export default function HomePage() { // Renamed from ExplorePage to HomePage
       setSelectedPost(prev => prev ? { ...prev, likes: newLikes } : null);
     }
   }, [selectedPost]);
+
+  const handleSaveUpdateInHome = useCallback((postId: string, newSavedBy: string[]) => {
+    setPosts(currentPosts =>
+      currentPosts.map(p =>
+        p.id === postId ? { ...p, savedBy: newSavedBy } : p
+      )
+    );
+    if (selectedPost && selectedPost.id === postId) {
+      setSelectedPost(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
+    }
+  }, [selectedPost]);
+
 
   if (loading && posts.length === 0) {
     return (
@@ -122,7 +134,7 @@ export default function HomePage() { // Renamed from ExplorePage to HomePage
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {posts.map(post => (
               <div key={post.id} onClick={() => handlePostCardClick(post)} className="cursor-pointer">
-                <PostCard post={post} onLikeUpdate={handleLikeUpdateInExplore} />
+                <PostCard post={post} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} />
               </div>
             ))}
           </div>
@@ -134,8 +146,10 @@ export default function HomePage() { // Renamed from ExplorePage to HomePage
         onOpenChange={(isOpen) => { 
           if (!isOpen) {
             setSelectedPost(null);
+            // Clear postId from URL if sheet is closed
             if (searchParams.get('postId')) {
-              router.replace('/', { scroll: false }); // Updated from /explore to /
+                const currentPath = router.pathname; // This might be just '/'
+                router.replace(currentPath, { scroll: false });
             }
           }
         }}
@@ -148,7 +162,7 @@ export default function HomePage() { // Renamed from ExplorePage to HomePage
                 <SheetDescription className="sr-only">Detailed view of: {selectedPost.description.substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
-                <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInExplore}/>
+                <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} />
               </div>
             </ScrollArea>
           )}

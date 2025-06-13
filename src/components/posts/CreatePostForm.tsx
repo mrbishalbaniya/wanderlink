@@ -159,33 +159,22 @@ export default function CreatePostForm() {
       return;
     }
 
-    console.log('[CreatePostForm onSubmit] Retrieved NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:', CLOUDINARY_CLOUD_NAME);
-    console.log('[CreatePostForm onSubmit] Retrieved NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET:', CLOUDINARY_UPLOAD_PRESET);
-
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
       toast({ title: 'Configuration Error', description: 'Cloudinary is not configured. Please check environment variables and contact support.', variant: 'destructive' });
       console.error("Attempted to submit post but Cloudinary env vars are missing. CLOUD_NAME:", CLOUDINARY_CLOUD_NAME, "UPLOAD_PRESET:", CLOUDINARY_UPLOAD_PRESET);
       return;
     }
 
-
-    console.log('[CreatePostForm] Attempting to submit post with values:', values);
     setIsSubmitting(true);
 
     try {
       const imageUrls: string[] = [];
       if (images.length > 0) {
-        console.log('[CreatePostForm] Starting image uploads to Cloudinary...');
         for (let i = 0; i < images.length; i++) {
           const image = images[i];
-          console.log(`[CreatePostForm] Uploading image ${i + 1}/${images.length}: ${image.name} to Cloudinary`);
           const downloadURL = await uploadImageToCloudinary(image);
           imageUrls.push(downloadURL);
-          console.log(`[CreatePostForm] Image ${i + 1} Cloudinary URL: ${downloadURL}`);
         }
-        console.log('[CreatePostForm] All images uploaded to Cloudinary successfully.');
-      } else {
-        console.log('[CreatePostForm] No images to upload.');
       }
 
       const postData = {
@@ -197,11 +186,10 @@ export default function CreatePostForm() {
         images: imageUrls,
         createdAt: serverTimestamp(),
         likes: [],
+        savedBy: [], // Initialize savedBy array
       };
       
-      console.log('[CreatePostForm] Adding document to Firestore with data:', postData);
       await addDoc(collection(db, 'posts'), postData);
-      console.log('[CreatePostForm] Document added to Firestore successfully.');
 
       toast({ title: 'Post Created!', description: 'Your travel post has been successfully shared.' });
       router.push('/');
@@ -213,7 +201,6 @@ export default function CreatePostForm() {
         variant: 'destructive',
       });
     } finally {
-      console.log('[CreatePostForm] Submission process finished. Setting isSubmitting to false.');
       setIsSubmitting(false);
     }
   }
@@ -346,4 +333,3 @@ export default function CreatePostForm() {
     </div>
   );
 }
-
