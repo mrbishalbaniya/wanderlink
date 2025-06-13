@@ -1,15 +1,19 @@
+
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDhWbzwst4YiLFl5v_WWai3l8lMFBM_V7M",
+  authDomain: "wandermap-c0794.firebaseapp.com",
+  projectId: "wandermap-c0794",
+  storageBucket: "wandermap-c0794.appspot.com", // Corrected to .appspot.com as per typical Firebase storage bucket names
+  messagingSenderId: "724032457230",
+  appId: "1:724032457230:web:b7f6668b17d5b4720f0a5f",
+  measurementId: "G-HQEHS2R999"
 };
 
 let app: FirebaseApp;
