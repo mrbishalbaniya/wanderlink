@@ -32,27 +32,20 @@ export default function HomePage() {
         const postsCollection = collection(db, 'posts');
         const q = query(postsCollection, orderBy('createdAt', 'desc'));
         const postsSnapshot = await getDocs(q);
-        const postsData = await Promise.all(postsSnapshot.docs.map(async (docSnapshot) => {
+        
+        // Simpler mapping, initially without fetching individual user profiles
+        const postsData = postsSnapshot.docs.map((docSnapshot) => {
           const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
           
-          // Convert Firestore Timestamp to Date for client-side processing
           if (post.createdAt && typeof (post.createdAt as Timestamp).toDate === 'function') {
             post.createdAtDate = (post.createdAt as Timestamp).toDate();
-          } else if (post.createdAt instanceof Date) { // Already a Date (e.g. from optimistic update)
+          } else if (post.createdAt instanceof Date) {
              post.createdAtDate = post.createdAt;
           }
-
-
-          // Fetch user data
-          if (post.userId) {
-            const userRef = doc(db, 'users', post.userId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-              post.user = userSnap.data() as UserProfile;
-            }
-          }
+          // User data can be fetched later if needed, or denormalized onto post documents
+          // For now, PostCard will handle missing user data
           return post;
-        }));
+        });
         setPosts(postsData);
       } catch (error) {
         console.error("Error fetching posts:", error);
@@ -68,6 +61,8 @@ export default function HomePage() {
   const handlePostMarkerClick = (postId: string) => {
     const post = posts.find(p => p.id === postId);
     if (post) {
+      // If we need user data for the selected post specifically, we could fetch it here
+      // For now, the selectedPost will be what was fetched in the list (without user initially)
       setSelectedPost(post);
     }
   };
