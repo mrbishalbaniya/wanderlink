@@ -127,7 +127,48 @@ export default function ProfilePage() {
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
-    defaultValues: {}, // Will be set by useEffect
+    defaultValues: {
+      name: '',
+      username: '',
+      dateOfBirth: null,
+      gender: '',
+      interestedIn: [],
+      bio: '',
+      phoneNumber: '',
+      socialMediaLinks: {
+        instagram: '',
+        linkedin: '',
+        twitter: '',
+        facebook: '',
+        tiktok: '',
+        website: '',
+      },
+      travelStyles: [],
+      favoriteDestinations: '',
+      bucketList: '',
+      preferredTransportModes: [],
+      travelFrequency: '',
+      travelAvailability: '',
+      travelBudgetRange: '',
+      interests: '',
+      languagesSpoken: '',
+      musicPreferences: '',
+      moviePreferences: '',
+      bookPreferences: '',
+      currentLocationAddress: '',
+      willingToTravelTo: '',
+      maxTravelDistance: 500,
+      matchPreferences_ageRange: [18, 99],
+      matchPreferences_genderPreference: [],
+      matchPreferences_lookingFor: [],
+      matchPreferences_smokingPreference: '',
+      matchPreferences_drinkingPreference: '',
+      matchPreferences_petFriendly: false,
+      matchPreferences_expensesPreference: '',
+      emergencyContact_name: '',
+      emergencyContact_phone: '',
+      emergencyContact_relationship: '',
+    },
   });
 
   const calculateProfileCompletion = useCallback((profile: UserProfile | null): number => {
@@ -160,7 +201,7 @@ export default function ProfilePage() {
         interestedIn: userProfile.interestedIn || [],
         bio: userProfile.bio || '',
         phoneNumber: userProfile.phoneNumber || '',
-        socialMediaLinks: userProfile.socialMediaLinks || {},
+        socialMediaLinks: userProfile.socialMediaLinks || { instagram: '', linkedin: '', twitter: '', facebook: '', tiktok: '', website: '' },
         travelStyles: userProfile.travelStyles || [],
         favoriteDestinations: arrayToString(userProfile.favoriteDestinations),
         bucketList: arrayToString(userProfile.bucketList),
@@ -229,8 +270,6 @@ export default function ProfilePage() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    // You might want a different preset/folder for ID verification images for security/privacy
-    // formData.append('folder', type === 'id' ? 'id_verifications' : 'avatars'); 
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -243,7 +282,6 @@ export default function ProfilePage() {
 
   const handleMapClick = useCallback((latlng: LatLng) => {
     setCurrentLocationCoords([latlng.lat, latlng.lng]);
-    // Optionally reverse geocode to get address and set in form.setValue('currentLocationAddress', address)
   }, []);
 
 
@@ -310,7 +348,6 @@ export default function ProfilePage() {
         lastUpdated: serverTimestamp(),
       };
       
-      // Calculate profile completion before saving
       const tempUpdatedProfileForCalc = { ...userProfile, ...updatedFirestoreProfile, dateOfBirthDate: data.dateOfBirth } as UserProfile;
       updatedFirestoreProfile.profileCompletionScore = calculateProfileCompletion(tempUpdatedProfileForCalc);
 
@@ -323,8 +360,8 @@ export default function ProfilePage() {
         const fullyUpdatedProfile = { 
             ...userProfile, 
             ...updatedFirestoreProfile, 
-            dateOfBirthDate: data.dateOfBirth, // ensure Date object is used for local state
-            lastUpdatedDate: new Date(), // for local state
+            dateOfBirthDate: data.dateOfBirth, 
+            lastUpdatedDate: new Date(), 
         } as UserProfile;
         updateAuthProviderProfile(fullyUpdatedProfile);
       }
@@ -705,4 +742,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
