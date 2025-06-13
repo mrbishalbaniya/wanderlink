@@ -1,0 +1,40 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default: Deny all reads and writes if no more specific rules match
+    // match /{document=**} {
+    //   allow read, write: if false;
+    // }
+
+    // Rules for 'users' collection
+    match /users/{userId} {
+      // Anyone can create a user document (signup)
+      allow create: if true;
+      // Only the authenticated user can read their own document
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Only the authenticated user can update their own document
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Deleting user documents is typically restricted
+      allow delete: if false; // Or implement admin-only deletion
+    }
+
+    // Rules for 'posts' collection
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      // Authenticated users can create posts, ensuring they set their own userId
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Authenticated users can update posts:
+      // - The author can update any field of their own post.
+      // - Any authenticated user can update ONLY the 'likes' field.
+      allow update: if request.auth != null &&
+                       ( (request.auth.uid == resource.data.userId) ||
+                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])) );
+      // Only the author can delete their post
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}
