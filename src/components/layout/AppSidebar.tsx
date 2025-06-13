@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Compass, MessageSquare, Users, User, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe, CalendarClock } from 'lucide-react'; // Added Globe, CalendarClock
+import { Compass, MessageSquare, Users, User, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe, CalendarClock } from 'lucide-react'; // Removed LayoutDashboard
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,8 +29,8 @@ import {
 import { cn } from '@/lib/utils'; 
 
 const navItems = [
-  { href: '/', label: 'Feed', icon: LayoutDashboard }, 
-  { href: '/upcoming', label: 'Upcoming Trips', icon: CalendarClock }, // Renamed here
+  // { href: '/', label: 'Feed', icon: LayoutDashboard }, // Removed Feed
+  { href: '/upcoming', label: 'Upcoming Trips', icon: CalendarClock },
   { href: '/explore', label: 'Explore Trips', icon: Compass }, 
   { href: '/map', label: 'Global Map', icon: Globe },
   { href: '/match', label: 'Match', icon: HeartHandshake },
@@ -57,7 +57,7 @@ export default function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="glassmorphic-sidebar border-r border-sidebar-border shadow-md">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <Link href="/" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}>
+        <Link href="/explore" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}> {/* Default to /explore if / is removed */}
           <MapPin className="h-7 w-7 text-primary" />
           <span className={cn(
             "font-headline text-xl font-bold text-primary",
