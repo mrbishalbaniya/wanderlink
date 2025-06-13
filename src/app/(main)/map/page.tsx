@@ -1,13 +1,13 @@
 
 'use client';
 
+import InteractiveMap from '@/components/map/InteractiveMap';
 import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
 import type { Post, UserProfile } from '@/types';
 import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { List, Loader2, PlusCircle, Compass } from 'lucide-react'; // Removed MapIcon, Map as MapIcon
+import { Loader2, Globe } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -16,16 +16,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import Link from 'next/link';
-// Removed: import type { Map as LeafletMap } from 'leaflet';
-// Removed: import { useRouter } from 'next/navigation';
+import type { Map as LeafletMap } from 'leaflet';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
-export default function HomePage() {
+export default function MapPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPostForSheet, setSelectedPostForSheet] = useState<Post | null>(null);
-  // Removed: const mapRefForPopupClose = useRef<LeafletMap | null>(null);
-  // Removed: const router = useRouter(); 
+  const mapRefForPopupClose = useRef<LeafletMap | null>(null);
+  const router = useRouter();
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -57,22 +57,29 @@ export default function HomePage() {
       }));
       setPosts(postsData);
     } catch (error) {
-      console.error("Error fetching posts:", error);
+      console.error("Error fetching posts for map:", error);
     } finally {
       setLoading(false);
     }
   }, []);
 
-
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
-  
-  const handlePostCardClickInList = useCallback((post: Post) => {
-    setSelectedPostForSheet(post);
-  }, []);
 
-  const handleLikeUpdateInList = useCallback((postId: string, newLikes: string[]) => {
+  const handlePostMarkerClickOnMap = useCallback((postId: string) => {
+    mapRefForPopupClose.current?.closePopup(); // Close map popup
+    const postToView = posts.find(p => p.id === postId);
+    if (postToView) {
+        setSelectedPostForSheet(postToView);
+    } else {
+        // Fallback: if post not found in current list (should ideally not happen if posts are up to date)
+        // navigate to explore page with postId as a fallback, or show a toast.
+        router.push(`/explore?postId=${postId}`);
+    }
+  }, [posts, router]);
+  
+  const handleLikeUpdateInSheet = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
       currentPosts.map(p => 
         p.id === postId ? { ...p, likes: newLikes } : p
@@ -82,7 +89,6 @@ export default function HomePage() {
       setSelectedPostForSheet(prev => prev ? { ...prev, likes: newLikes } : null);
     }
   }, [selectedPostForSheet]);
-
 
   if (loading) {
     return (
@@ -94,42 +100,30 @@ export default function HomePage() {
   
   return (
     <div className="flex flex-col h-full">
-      <div className="pb-4 flex justify-between items-center space-x-2 sticky top-0 z-10 bg-background/80 dark:bg-background/70 backdrop-blur-md pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-headline text-primary">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Recent travel experiences from the community.</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          {/* Removed Map/List view toggle buttons */}
-          <Button asChild size="sm" className="rounded-lg bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Link href="/create">
-              <PlusCircle className="mr-2 h-4 w-4" /> New Post
-            </Link>
-          </Button>
-        </div>
+      <div className="pb-4 sticky top-0 z-10 bg-background/80 dark:bg-background/70 backdrop-blur-md pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4 shadow-sm">
+        <h1 className="text-2xl font-headline text-primary">Global Adventure Map</h1>
+        <p className="text-sm text-muted-foreground">Explore shared experiences from around the world.</p>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
-        <ScrollArea className="h-full pr-3">
-            {posts.length === 0 && !loading ? (
-              <div className="text-center py-20 glassmorphic-card">
-                <Compass size={64} className="mx-auto text-muted-foreground/50 mb-4" />
-                <h2 className="text-xl font-semibold text-foreground mb-2">No adventures posted yet!</h2>
-                <p className="text-muted-foreground mb-6">Be the first to share your travel story or explore what others have shared.</p>
-                <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                  <Link href="/create">Create Your First Post</Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {posts.map(post => (
-                  <div key={post.id} onClick={() => handlePostCardClickInList(post)} className="cursor-pointer">
-                    <PostCard post={post} onLikeUpdate={handleLikeUpdateInList} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+      <div className="flex-1 overflow-hidden relative rounded-xl shadow-soft-lg">
+        {posts.length === 0 && !loading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-muted rounded-xl">
+                <Globe size={80} className="text-muted-foreground/30 mb-6" />
+                <h2 className="text-2xl font-semibold text-foreground mb-3">The Map is Quiet... For Now</h2>
+                <p className="text-muted-foreground mb-6 max-w-md">
+                No adventures have been plotted on the map yet. Why not be the first to share yours?
+                </p>
+                {/* Placeholder image can be added here if desired */}
+                {/* <Image src="/images/placeholder-map.png" alt="Empty map placeholder" width={300} height={200} className="opacity-50 rounded-lg shadow-md" data-ai-hint="map illustration" /> */}
+            </div>
+        ) : (
+            <InteractiveMap 
+                posts={posts} 
+                className="absolute inset-0" 
+                onPostClick={handlePostMarkerClickOnMap} 
+                setMapInstance={(mapInstance) => mapRefForPopupClose.current = mapInstance}
+            />
+        )}
       </div>
       
       <Sheet open={!!selectedPostForSheet} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPostForSheet(null); }}>
@@ -141,7 +135,7 @@ export default function HomePage() {
                 <SheetDescription className="sr-only">Detailed view of: {selectedPostForSheet.description.substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
-                <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInList}/>
+                <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInSheet}/>
               </div>
             </ScrollArea>
           )}
