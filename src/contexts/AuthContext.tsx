@@ -1,3 +1,4 @@
+
 // src/contexts/AuthContext.tsx
 'use client';
 
@@ -5,13 +6,13 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode, Dispatch, SetStateAction } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import type { UserProfile } from '@/types';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userProfile: UserProfile | null;
-  setUserProfile: Dispatch<SetStateAction<UserProfile | null>>; // Allow updating userProfile from components
+  setUserProfile: Dispatch<SetStateAction<UserProfile | null>>; 
   loading: boolean;
   logout: () => Promise<void>;
 }
@@ -32,29 +33,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const profileData = userSnap.data() as UserProfile;
-           // Convert Firestore Timestamps to Dates for client-side consistency
+          
           if (profileData.joinedAt && typeof (profileData.joinedAt as any).toDate === 'function') {
-            profileData.joinedAtDate = (profileData.joinedAt as any).toDate();
+            profileData.joinedAtDate = (profileData.joinedAt as Timestamp).toDate();
+          }
+          if (profileData.dateOfBirth && typeof (profileData.dateOfBirth as any).toDate === 'function') {
+            profileData.dateOfBirthDate = (profileData.dateOfBirth as Timestamp).toDate();
+          }
+           if (profileData.lastUpdated && typeof (profileData.lastUpdated as any).toDate === 'function') {
+            profileData.lastUpdatedDate = (profileData.lastUpdated as Timestamp).toDate();
           }
           setUserProfile(profileData);
         } else {
-          // Create new user profile
           const initialName = user.displayName || user.email?.split('@')[0] || 'Wanderer';
           const newUserProfile: UserProfile = {
             uid: user.uid,
             name: initialName,
             email: user.email || '',
             avatar: user.photoURL || `https://placehold.co/100x100.png?text=${initialName.charAt(0).toUpperCase()}`,
-            joinedAt: serverTimestamp(), // This will be a server timestamp
+            joinedAt: serverTimestamp(), 
+            profileCompletionScore: 10, // Initial small score
           };
           try {
             await setDoc(userRef, newUserProfile);
-            // After setting, Firestore gives a server timestamp. For immediate use, we can use a client Date.
-            // Or re-fetch, but for simplicity:
-            setUserProfile({ ...newUserProfile, joinedAtDate: new Date() });
+            setUserProfile({ ...newUserProfile, joinedAtDate: new Date(), profileCompletionScore: 10 });
           } catch (profileError) {
             console.error("Error creating user profile:", profileError);
-            setUserProfile(null); // Or some error state
+            setUserProfile(null); 
           }
         }
       } else {
@@ -73,19 +78,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     await auth.signOut();
-    // currentUser and userProfile will be set to null by onAuthStateChanged
   };
   
   const value = {
     currentUser,
     userProfile,
-    setUserProfile, // Provide setUserProfile
+    setUserProfile, 
     loading,
     logout
   };
 
-  // Render children only when loading is false to prevent flash of unauthenticated content
-  // or layout shifts.
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 };
 
