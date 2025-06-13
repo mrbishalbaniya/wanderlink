@@ -1,3 +1,4 @@
+
 // src/components/layout/AppSidebar.tsx (acting as SidebarNav)
 'use client';
 
@@ -16,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Compass, MessageSquare, Users, User, Settings, LogOut, MapPin, Edit } from 'lucide-react';
+import { LayoutDashboard, Compass, MessageSquare, Users, User, Settings, LogOut, MapPin, Edit, HeartHandshake } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,13 +26,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from '@/lib/utils'; // Added missing import
+import { cn } from '@/lib/utils'; 
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/explore', label: 'Explore Trips', icon: Compass }, // Assuming /explore page will be created
+  { href: '/explore', label: 'Explore Trips', icon: Compass }, 
+  { href: '/match', label: 'Match', icon: HeartHandshake }, // New Match link
   { href: '/chat', label: 'Messages', icon: MessageSquare },
-  { href: '/friends', label: 'Friends', icon: Users }, // Assuming /friends page will be created
+  { href: '/friends', label: 'Friends', icon: Users }, 
   { href: '/profile', label: 'Profile', icon: User },
 ];
 
@@ -39,12 +41,12 @@ export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, userProfile, logout } = useAuth();
-  const { setOpenMobile, state: sidebarState } = useSidebar(); // Get sidebar state for logo
+  const { setOpenMobile, state: sidebarState } = useSidebar(); 
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login'); // Redirect to login after logout
+      router.push('/login'); 
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -57,7 +59,7 @@ export default function AppSidebar() {
           <MapPin className="h-7 w-7 text-primary" />
           <span className={cn(
             "font-headline text-xl font-bold text-primary",
-            sidebarState === 'collapsed' && 'group-data-[collapsible=icon]:hidden' // Ensure hidden works with group data attr
+            sidebarState === 'collapsed' && 'group-data-[collapsible=icon]:hidden' 
           )}>
             WanderLink
           </span>

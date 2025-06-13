@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea'; // Added Textarea
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { updateProfile as updateAuthProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -21,16 +21,18 @@ export default function ProfilePage() {
   const { currentUser, userProfile, loading: authLoading, setUserProfile: updateAuthProviderProfile } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [interestsInput, setInterestsInput] = useState(''); // State for interests textarea
+  const [interestsInput, setInterestsInput] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
       setName(userProfile.name);
+      setBio(userProfile.bio || '');
       setAvatarPreview(userProfile.avatar);
-      setInterestsInput(userProfile.interests?.join(', ') || ''); // Populate interests
+      setInterestsInput(userProfile.interests?.join(', ') || '');
     }
   }, [userProfile]);
 
@@ -66,7 +68,8 @@ export default function ProfilePage() {
       await updateDoc(userDocRef, {
         name: name,
         avatar: newAvatarUrl,
-        interests: interestsArray, // Save interests
+        interests: interestsArray,
+        bio: bio,
       });
       
       if (userProfile) {
@@ -74,7 +77,8 @@ export default function ProfilePage() {
           ...userProfile, 
           name, 
           avatar: newAvatarUrl,
-          interests: interestsArray, // Update local profile context
+          interests: interestsArray,
+          bio,
         };
          if (typeof updateAuthProviderProfile === 'function') {
             updateAuthProviderProfile(updatedProfile);
@@ -141,6 +145,18 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-3">
+              <Label htmlFor="bio" className="text-md font-medium text-foreground/90">Bio</Label>
+              <Textarea 
+                id="bio" 
+                value={bio} 
+                onChange={(e) => setBio(e.target.value)} 
+                placeholder="Tell us a little about yourself and your travel style..." 
+                rows={3}
+                className="text-base py-3 px-4 rounded-lg shadow-sm focus:ring-primary focus:border-primary bg-input"
+              />
+            </div>
+
+            <div className="space-y-3">
               <Label htmlFor="email" className="text-md font-medium text-foreground/90">Email Address</Label>
               <Input id="email" type="email" value={userProfile.email} disabled className="text-base py-3 px-4 rounded-lg bg-muted/60 border-border/50 cursor-not-allowed shadow-sm" />
             </div>
@@ -179,4 +195,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

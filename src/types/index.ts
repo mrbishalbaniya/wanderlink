@@ -28,9 +28,26 @@ export interface UserProfile {
   name: string;
   email: string;
   avatar: string;
+  bio?: string; // Added bio field
   joinedAt: Timestamp | FieldValue;
   interests?: string[]; // Added interests field
    // For client-side display, convert Timestamp to Date
   joinedAtDate?: Date;
 }
 
+export type SwipeAction = 'like' | 'skip';
+
+export interface SwipeData {
+  id?: string; // Optional, if you want to store doc ID on the object
+  swiperId: string;
+  swipedUserId: string;
+  action: SwipeAction;
+  timestamp: FieldValue;
+}
+
+export interface MatchData {
+  id?: string; // Optional, like concatenated UIDs
+  users: [string, string]; // Array of two user UIDs
+  timestamp: FieldValue;
+  chatId?: string; // Optional for future chat integration
+}
