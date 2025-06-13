@@ -1,3 +1,4 @@
+
 'use client';
 
 import InteractiveMap from '@/components/map/InteractiveMap';
@@ -7,7 +8,7 @@ import type { Post, UserProfile } from '@/types';
 import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { List, MapTrifold, Loader2 } from 'lucide-react';
+import { List, Map, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -95,7 +96,7 @@ export default function HomePage() {
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <div className="p-4 flex justify-end space-x-2 bg-background/80 backdrop-blur">
          <Button variant={viewMode === 'map' ? 'default' : 'outline'} onClick={() => setViewMode('map')} size="sm">
-            <MapTrifold className="mr-2 h-4 w-4" /> Map View
+            <Map className="mr-2 h-4 w-4" /> Map View
           </Button>
           <Button variant={viewMode === 'list' ? 'default' : 'outline'} onClick={() => setViewMode('list')} size="sm">
             <List className="mr-2 h-4 w-4" /> List View
