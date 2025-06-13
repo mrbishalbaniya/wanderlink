@@ -28,6 +28,16 @@ import * as z from 'zod';
 import type { UserProfile, Gender, InterestedIn, TravelStyle, TransportMode, LookingFor, ExpensePreference, SimplePreference, Coordinates } from '@/types';
 import InteractiveMap from '@/components/map/InteractiveMap'; // Assuming this exists
 import type { LatLng, LatLngTuple } from 'leaflet';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import Image from 'next/image';
 
 
 const MAX_IMAGE_SIZE_MB = 5;
@@ -694,3 +704,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
