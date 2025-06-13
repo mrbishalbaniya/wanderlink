@@ -57,7 +57,7 @@ const lookingForOptions: { id: LookingFor; label: string }[] = [
     { id: 'travel-buddy', label: 'Travel Buddy' },
     { id: 'dating', label: 'Casual Dating' },
     { id: 'long-term-relationship', label: 'Long-Term Relationship' },
-];
+].filter(option => option.id !== ''); // Ensure '' is not an option
 
 
 // Helper to convert comma-separated string to array and back
@@ -109,6 +109,17 @@ const profileSchema = z.object({
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
+
+// Define explicit option lists without empty strings for SelectItem iteration
+const genderOptions: Exclude<Gender, ''>[] = ['male', 'female', 'non-binary', 'prefer-not-to-say'];
+const interestedInOptions: Exclude<InterestedIn, ''>[] = ['men', 'women', 'everyone'];
+const travelStyleOptions: Exclude<TravelStyle, ''>[] = ['adventure', 'budget', 'luxury', 'solo', 'group', 'family', 'business', 'other'];
+const transportModeOptions: Exclude<TransportMode, ''>[] = ['flight', 'train', 'car', 'bus', 'bicycle', 'boat', 'other'];
+const travelFrequencyOptions = ['Multiple times a year', 'Once a year', 'Every few years', 'Rarely but open to it'];
+const travelBudgetOptions = ['$ - Shoestring/Backpacker', '$$ - Budget Traveler', '$$$ - Mid-Range Comfort', '$$$$ - Luxury Seeker', '$$$$$ - Ultra Luxury'];
+const simplePreferenceOptions: Exclude<SimplePreference, ''>[] = ['yes', 'no', 'ask'];
+const expensePreferenceOptions: Exclude<ExpensePreference, ''>[] = ['yes', 'no', 'depends'];
+
 
 export default function ProfilePage() {
   const { currentUser, userProfile, loading: authLoading, setUserProfile: updateAuthProviderProfile } = useAuth();
@@ -457,13 +468,13 @@ export default function ProfilePage() {
                     <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select your gender" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {(['', 'male', 'female', 'non-binary', 'prefer-not-to-say'] as Gender[]).map(g => <SelectItem key={g} value={g}>{g ? g.charAt(0).toUpperCase() + g.slice(1) : "Select..."}</SelectItem>)}
+                          {genderOptions.map(g => <SelectItem key={g} value={g}>{g.charAt(0).toUpperCase() + g.slice(1)}</SelectItem>)}
                         </SelectContent></Select><FormMessage /></FormItem>
                   )} />
                    <Controller control={form.control} name="interestedIn" render={({ field }) => (
                     <FormItem><FormLabel>Interested In</FormLabel>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                        {(['men', 'women', 'everyone'] as InterestedIn[]).filter(g => g).map((item) => (
+                        {interestedInOptions.map((item) => (
                           <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl>
                               <Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
@@ -516,7 +527,7 @@ export default function ProfilePage() {
                   <Controller control={form.control} name="travelStyles" render={({ field }) => (
                     <FormItem><FormLabel>Travel Styles</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                        {(['adventure', 'budget', 'luxury', 'solo', 'group', 'family', 'business', 'other'] as TravelStyle[]).filter(ts => ts).map((item) => (
+                        {travelStyleOptions.map((item) => (
                           <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl>
                               <Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
@@ -538,7 +549,7 @@ export default function ProfilePage() {
                    <Controller control={form.control} name="preferredTransportModes" render={({ field }) => (
                     <FormItem><FormLabel>Preferred Transport Modes</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                        {(['flight', 'train', 'car', 'bus', 'bicycle', 'boat', 'other'] as TransportMode[]).filter(tm => tm).map((item) => (
+                        {transportModeOptions.map((item) => (
                           <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl>
                               <Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
@@ -554,7 +565,7 @@ export default function ProfilePage() {
                   <FormField control={form.control} name="travelFrequency" render={({ field }) => (
                     <FormItem><FormLabel>Travel Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="How often do you travel?" /></SelectTrigger></FormControl>
-                        <SelectContent>{['', 'Multiple times a year', 'Once a year', 'Every few years', 'Rarely but open to it'].map(f => <SelectItem key={f} value={f}>{f || "Select..."}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                        <SelectContent>{travelFrequencyOptions.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="travelAvailability" render={({ field }) => (
                     <FormItem><FormLabel>Typical Travel Availability</FormLabel><FormControl><Input placeholder="e.g., Weekends, Long weekends, Summer holidays" {...field} /></FormControl><FormMessage /></FormItem>
@@ -562,7 +573,7 @@ export default function ProfilePage() {
                    <FormField control={form.control} name="travelBudgetRange" render={({ field }) => (
                     <FormItem><FormLabel>Typical Travel Budget</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select your typical budget" /></SelectTrigger></FormControl>
-                        <SelectContent>{['', '$ - Shoestring/Backpacker', '$$ - Budget Traveler', '$$$ - Mid-Range Comfort', '$$$$ - Luxury Seeker', '$$$$$ - Ultra Luxury'].map(b => <SelectItem key={b} value={b}>{b || "Select..."}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                        <SelectContent>{travelBudgetOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
                 </CardContent>
               </Card>
@@ -632,7 +643,7 @@ export default function ProfilePage() {
                   <Controller control={form.control} name="matchPreferences_genderPreference" render={({ field }) => (
                     <FormItem><FormLabel>Interested in Matching With</FormLabel>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                        {(['men', 'women', 'everyone'] as InterestedIn[]).filter(g => g).map((item) => (
+                        {interestedInOptions.map((item) => (
                           <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl>
                               <Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
@@ -664,12 +675,12 @@ export default function ProfilePage() {
                   <FormField control={form.control} name="matchPreferences_smokingPreference" render={({ field }) => (
                     <FormItem><FormLabel>Smoking Preference (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select preference" /></SelectTrigger></FormControl>
-                        <SelectContent>{['', 'yes', 'no', 'ask'].map(s => <SelectItem key={s} value={s}>{s ? s.charAt(0).toUpperCase() + s.slice(1) : "Select..."}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                        <SelectContent>{simplePreferenceOptions.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="matchPreferences_drinkingPreference" render={({ field }) => (
                     <FormItem><FormLabel>Drinking Preference (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select preference" /></SelectTrigger></FormControl>
-                        <SelectContent>{['', 'yes', 'no', 'ask'].map(d => <SelectItem key={d} value={d}>{d ? d.charAt(0).toUpperCase() + d.slice(1) : "Select..."}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                        <SelectContent>{simplePreferenceOptions.map(d => <SelectItem key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="matchPreferences_petFriendly" render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-input/30"><div className="space-y-0.5">
@@ -681,7 +692,7 @@ export default function ProfilePage() {
                   <FormField control={form.control} name="matchPreferences_expensesPreference" render={({ field }) => (
                     <FormItem><FormLabel>Willing to Share Expenses (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select preference" /></SelectTrigger></FormControl>
-                        <SelectContent>{['', 'yes', 'no', 'depends'].map(e => <SelectItem key={e} value={e}>{e ? e.charAt(0).toUpperCase() + e.slice(1) : "Select..."}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                        <SelectContent>{expensePreferenceOptions.map(e => <SelectItem key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
                 </CardContent>
               </Card>
