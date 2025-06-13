@@ -1,8 +1,9 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import L, { LatLngExpression, Icon } from 'leaflet';
+import { useEffect, useRef } from 'react';
+import type { LatLng, LatLngTuple } from 'leaflet';
+import L from 'leaflet'; // Import L directly
 import 'leaflet.markercluster'; // Import for side effects
 import type { Post, PostCategory } from '@/types';
 import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon } from 'lucide-react';
@@ -58,10 +59,10 @@ const createCustomIcon = (category: PostCategory): L.DivIcon => {
   );
   return L.divIcon({
     html: iconHtml,
-    className: 'custom-marker-icon', // Keep this class for potential global styling
+    className: 'custom-marker-icon',
     iconSize: [32, 32],
-    iconAnchor: [16, 32], // Point of the icon which will correspond to marker's location
-    popupAnchor: [0, -32] // Point from which the popup should open relative to the iconAnchor
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
   });
 };
 
@@ -80,8 +81,8 @@ export default function InteractiveMap({
   posts = [],
   onMapClick,
   selectedLocation,
-  center = [20, 0], // Default center (world view)
-  zoom = 2,       // Default zoom
+  center = [20, 0], 
+  zoom = 2,       
   className = "h-[500px] w-full",
   onPostClick,
 }: InteractiveMapProps) {
@@ -89,83 +90,92 @@ export default function InteractiveMap({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const markersLayerRef = useRef<L.MarkerClusterGroup | null>(null);
   const selectedMarkerRef = useRef<L.Marker | null>(null);
-  const [mapInitialized, setMapInitialized] = useState(false);
 
+  // Effect for map creation, view, and base tile layer
   useEffect(() => {
-    if (typeof window !== 'undefined' && mapContainerRef.current && !mapInitialized) {
-      const map = L.map(mapContainerRef.current).setView(center, zoom);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(map);
-
-      mapRef.current = map;
-      markersLayerRef.current = L.markerClusterGroup().addTo(map);
-      setMapInitialized(true);
-
-      if (onMapClick) {
-        map.on('click', (e: L.LeafletMouseEvent) => {
-          onMapClick(e.latlng);
-        });
-      }
+    if (typeof window === 'undefined' || !mapContainerRef.current) {
+      return;
     }
-     // Cleanup function
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove(); // This should also clean up listeners attached to the map instance.
-        mapRef.current = null;
-        // setMapInitialized(false); // Removed this line
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center, zoom, onMapClick]); // mapInitialized is NOT a dependency here intentionally
 
-  useEffect(() => {
-    if (mapRef.current && markersLayerRef.current && mapInitialized) { // Ensure map is initialized
-      markersLayerRef.current.clearLayers(); // Clear old markers
-      posts.forEach(post => {
-        if (post.coordinates) {
-          const marker = L.marker([post.coordinates.latitude, post.coordinates.longitude], {
-            icon: createCustomIcon(post.category || 'other'),
-          })
-          .bindPopup(`<b>${post.title}</b><br>${post.description.substring(0,100)}...`);
-          
-          if(onPostClick) {
-            // Define the handler function separately to potentially help with debugging or future memoization
-            const handleMarkerClick = () => {
-              onPostClick(post.id);
-            };
-            marker.on('click', handleMarkerClick);
-          }
-          markersLayerRef.current?.addLayer(marker);
-        }
+    // Initialize map
+    const newMap = L.map(mapContainerRef.current).setView(center, zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(newMap);
+
+    const newMarkersLayer = L.markerClusterGroup();
+    newMap.addLayer(newMarkersLayer);
+
+    mapRef.current = newMap;
+    markersLayerRef.current = newMarkersLayer;
+
+    if (onMapClick) {
+      newMap.on('click', (e: L.LeafletMouseEvent) => {
+        onMapClick(e.latlng);
       });
     }
-  }, [posts, mapInitialized, onPostClick]);
+    
+    // Invalidate size in case container was not fully ready
+    newMap.invalidateSize();
 
+
+    return () => {
+      newMap.remove();
+      mapRef.current = null;
+      markersLayerRef.current = null; // Also clear this ref
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center.toString(), zoom, onMapClick]); // center needs stable comparison, stringify or use separate states if mutable
+
+  // Effect for updating post markers
   useEffect(() => {
-    if (mapRef.current && mapInitialized) { // Ensure map is initialized
-        if (selectedLocation) {
-            if (selectedMarkerRef.current) {
-                selectedMarkerRef.current.setLatLng(selectedLocation);
-            } else {
-                selectedMarkerRef.current = L.marker(selectedLocation, { draggable: true })
-                .addTo(mapRef.current)
-                .bindPopup('Selected Location');
-                
-                selectedMarkerRef.current.on('dragend', (event) => {
-                    const marker = event.target;
-                    const position = marker.getLatLng();
-                    if(onMapClick) onMapClick(position);
-                });
-            }
-            mapRef.current.setView(selectedLocation, mapRef.current.getZoom());
-        } else if (selectedMarkerRef.current) { // If no selectedLocation, but marker exists, remove it
-            mapRef.current.removeLayer(selectedMarkerRef.current);
-            selectedMarkerRef.current = null;
-        }
+    if (!mapRef.current || !markersLayerRef.current) {
+      return;
     }
-  }, [selectedLocation, mapInitialized, onMapClick]);
-  
+    markersLayerRef.current.clearLayers();
+    posts.forEach(post => {
+      if (post.coordinates) {
+        const marker = L.marker([post.coordinates.latitude, post.coordinates.longitude], {
+          icon: createCustomIcon(post.category || 'other'),
+        })
+        .bindPopup(`<b>${post.title}</b><br>${post.description.substring(0,100)}...`);
+        
+        if(onPostClick) {
+          marker.on('click', () => onPostClick(post.id));
+        }
+        markersLayerRef.current?.addLayer(marker);
+      }
+    });
+  }, [posts, onPostClick]); // Removed mapRef and markersLayerRef from deps as they are refs
+
+  // Effect for selected location marker
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    // Remove previous selected marker if it exists
+    if (selectedMarkerRef.current) {
+      mapRef.current.removeLayer(selectedMarkerRef.current);
+      selectedMarkerRef.current = null;
+    }
+
+    // Add new selected marker if location is provided
+    if (selectedLocation) {
+      const newSelectedMarker = L.marker(selectedLocation, { draggable: true })
+        .addTo(mapRef.current)
+        .bindPopup('Selected Location');
+      
+      newSelectedMarker.on('dragend', (event) => {
+        const marker = event.target;
+        const position = marker.getLatLng();
+        if(onMapClick) onMapClick(position);
+      });
+      
+      selectedMarkerRef.current = newSelectedMarker;
+      mapRef.current.setView(selectedLocation, mapRef.current.getZoom());
+    }
+  }, [selectedLocation, onMapClick]); // Removed mapRef from deps
 
   return <div ref={mapContainerRef} className={cn('bg-muted rounded-lg shadow-md overflow-hidden', className)} />;
 }
