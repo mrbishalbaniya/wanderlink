@@ -336,8 +336,8 @@ export default function ProfilePage() {
         moviePreferences: stringToArray(data.moviePreferences),
         bookPreferences: stringToArray(data.bookPreferences),
         currentLocation: {
-          address: data.currentLocationAddress,
-          coordinates: currentLocationCoords ? { latitude: currentLocationCoords[0], longitude: currentLocationCoords[1] } : undefined,
+          address: data.currentLocationAddress || '',
+          ...(currentLocationCoords && { coordinates: { latitude: currentLocationCoords[0], longitude: currentLocationCoords[1] } })
         },
         willingToTravelTo: stringToArray(data.willingToTravelTo),
         maxTravelDistance: data.maxTravelDistance,
