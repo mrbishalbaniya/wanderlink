@@ -35,6 +35,13 @@ import Image from 'next/image';
 const MAX_IMAGES = 5;
 const MAX_IMAGE_SIZE_MB = 5;
 
+// Log environment variables when the module loads (client-side)
+if (typeof window !== 'undefined') {
+  console.log('[CreatePostForm Load] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:', process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
+  console.log('[CreatePostForm Load] NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET:', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+}
+
+
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(100),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }).max(1000),
@@ -116,14 +123,14 @@ export default function CreatePostForm() {
 
   const uploadImageToCloudinary = async (file: File): Promise<string> => {
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      console.error("Cloudinary environment variables not set.");
+      console.error("[uploadImageToCloudinary] Cloudinary environment variables not set during function call.");
       throw new Error("Cloudinary configuration is missing.");
     }
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
-    console.log(`[Cloudinary] Uploading ${file.name} to ${CLOUDINARY_CLOUD_NAME}`);
+    console.log(`[Cloudinary] Uploading ${file.name} to ${CLOUDINARY_CLOUD_NAME} using preset ${CLOUDINARY_UPLOAD_PRESET}`);
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
       {
@@ -151,9 +158,13 @@ export default function CreatePostForm() {
       toast({ title: 'Location Required', description: 'Please select a location on the map.', variant: 'destructive' });
       return;
     }
+
+    console.log('[CreatePostForm onSubmit] Retrieved NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:', CLOUDINARY_CLOUD_NAME);
+    console.log('[CreatePostForm onSubmit] Retrieved NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET:', CLOUDINARY_UPLOAD_PRESET);
+
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      toast({ title: 'Configuration Error', description: 'Cloudinary is not configured. Please contact support.', variant: 'destructive' });
-      console.error("Attempted to submit post but Cloudinary env vars are missing.");
+      toast({ title: 'Configuration Error', description: 'Cloudinary is not configured. Please check environment variables and contact support.', variant: 'destructive' });
+      console.error("Attempted to submit post but Cloudinary env vars are missing. CLOUD_NAME:", CLOUDINARY_CLOUD_NAME, "UPLOAD_PRESET:", CLOUDINARY_UPLOAD_PRESET);
       return;
     }
 
@@ -335,3 +346,4 @@ export default function CreatePostForm() {
     </div>
   );
 }
+
