@@ -10,7 +10,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDhWbzwst4YiLFl5v_WWai3l8lMFBM_V7M",
   authDomain: "wandermap-c0794.firebaseapp.com",
   projectId: "wandermap-c0794",
-  storageBucket: "wandermap-c0794.appspot.com", // Corrected to .appspot.com as per typical Firebase storage bucket names
+  storageBucket: "wandermap-c0794.firebasestorage.app", // Reverted to user-provided value
   messagingSenderId: "724032457230",
   appId: "1:724032457230:web:b7f6668b17d5b4720f0a5f",
   measurementId: "G-HQEHS2R999"
