@@ -22,7 +22,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import InteractiveMap from '@/components/map/InteractiveMap';
 import type { LatLng, LatLngTuple } from 'leaflet';
 import type { PostCategory } from '@/types';
@@ -66,9 +66,9 @@ export default function CreatePostForm() {
     };
   }, [imagePreviews]);
 
-  const handleMapClick = (latlng: LatLng) => {
+  const handleMapClick = useCallback((latlng: LatLng) => {
     setSelectedLocation([latlng.lat, latlng.lng]);
-  };
+  }, []);
 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {

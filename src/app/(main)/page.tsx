@@ -6,7 +6,7 @@ import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
 import type { Post, UserProfile } from '@/types';
 import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { List, Map, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,7 +33,6 @@ export default function HomePage() {
         const q = query(postsCollection, orderBy('createdAt', 'desc'));
         const postsSnapshot = await getDocs(q);
         
-        // Simpler mapping, initially without fetching individual user profiles
         const postsData = postsSnapshot.docs.map((docSnapshot) => {
           const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
           
@@ -42,14 +41,11 @@ export default function HomePage() {
           } else if (post.createdAt instanceof Date) {
              post.createdAtDate = post.createdAt;
           }
-          // User data can be fetched later if needed, or denormalized onto post documents
-          // For now, PostCard will handle missing user data
           return post;
         });
         setPosts(postsData);
       } catch (error) {
         console.error("Error fetching posts:", error);
-        // Handle error (e.g., show toast)
       } finally {
         setLoading(false);
       }
@@ -58,16 +54,14 @@ export default function HomePage() {
     fetchPosts();
   }, []);
 
-  const handlePostMarkerClick = (postId: string) => {
+  const handlePostMarkerClick = useCallback((postId: string) => {
     const post = posts.find(p => p.id === postId);
     if (post) {
-      // If we need user data for the selected post specifically, we could fetch it here
-      // For now, the selectedPost will be what was fetched in the list (without user initially)
       setSelectedPost(post);
     }
-  };
+  }, [posts]);
   
-  const handleLikeUpdateInList = (postId: string, newLikes: string[]) => {
+  const handleLikeUpdateInList = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
       currentPosts.map(p => 
         p.id === postId ? { ...p, likes: newLikes } : p
@@ -76,7 +70,7 @@ export default function HomePage() {
      if (selectedPost && selectedPost.id === postId) {
       setSelectedPost(prev => prev ? { ...prev, likes: newLikes } : null);
     }
-  };
+  }, [selectedPost]);
 
 
   if (loading) {
