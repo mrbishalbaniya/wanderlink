@@ -7,8 +7,8 @@ import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata: Metadata = {
-  title: 'WanderMap - Travel Community Map',
-  description: 'Share and discover travel locations with WanderMap.',
+  title: 'WanderLink - Travel Social App', // Updated App Name
+  description: 'Share and discover travel locations with WanderLink.',
 };
 
 export default function RootLayout({
@@ -17,17 +17,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning on html */}
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Updated to only PT Sans as per spec for both body and headline */}
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossOrigin=""/>
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
       </head>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased"> {/* font-body will use PT Sans */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

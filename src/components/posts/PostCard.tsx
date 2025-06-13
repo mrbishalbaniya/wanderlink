@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -23,11 +24,9 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
-  // Initialize liked state based on current user and post likes
   const [isLiked, setIsLiked] = useState(() => currentUser ? post.likes.includes(currentUser.uid) : false);
   const [likeCount, setLikeCount] = useState(post.likes.length);
 
-  // Effect to update like status if currentUser or post.likes changes
   useEffect(() => {
     setIsLiked(currentUser ? post.likes.includes(currentUser.uid) : false);
     setLikeCount(post.likes.length);
@@ -43,11 +42,9 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
     const newLikedStatus = !isLiked;
     const newLikeCount = newLikedStatus ? likeCount + 1 : likeCount - 1;
 
-    // Optimistically update UI
     setIsLiked(newLikedStatus);
     setLikeCount(newLikeCount);
     
-    // For list view updates, create the new likes array based on optimistic change
     let updatedLikesArray: string[];
     if (newLikedStatus) {
         updatedLikesArray = [...post.likes, currentUser.uid];
@@ -57,7 +54,6 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
     if(onLikeUpdate) {
         onLikeUpdate(post.id, updatedLikesArray);
     }
-
 
     try {
       if (newLikedStatus) {
@@ -72,10 +68,9 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
     } catch (error) {
       console.error("Error updating like:", error);
       toast({ title: "Error", description: "Could not update like status.", variant: "destructive" });
-      // Revert optimistic update on error
       setIsLiked(!newLikedStatus);
-      setLikeCount(isLiked ? likeCount -1 : likeCount + 1); // Revert count based on original isLiked
-      if(onLikeUpdate) onLikeUpdate(post.id, post.likes); // Revert likes array in parent
+      setLikeCount(isLiked ? likeCount -1 : likeCount + 1);
+      if(onLikeUpdate) onLikeUpdate(post.id, post.likes);
     }
   };
 
@@ -85,11 +80,11 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
   const userAvatar = post.user?.avatar || `https://placehold.co/40x40.png?text=${userName.charAt(0)}`;
 
   return (
-    <Card className="w-full overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 bg-card/80 dark:bg-card/70 backdrop-blur-sm rounded-xl">
+    <Card className="w-full overflow-hidden glassmorphic-card"> {/* Applied glassmorphic-card */}
       <CardHeader className="flex flex-row items-center space-x-3 p-4 md:p-6">
         <Avatar className="h-11 w-11">
           <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait" />
-          <AvatarFallback className="text-lg">{userName.charAt(0).toUpperCase()}</AvatarFallback>
+          <AvatarFallback className="text-lg bg-muted text-muted-foreground">{userName.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div>
           <CardTitle className="text-xl font-headline font-semibold">{post.title}</CardTitle>
@@ -107,12 +102,11 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
                   <Image 
                     src={imgUrl} 
                     alt={`${post.title} image ${index + 1}`} 
-                    fill // Use fill instead of layout
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Provide sizes for optimization
-                    objectFit="cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover" // Removed rounded-t-none as card handles overflow
                     data-ai-hint="travel landscape"
-                    className="rounded-t-none" // Images don't need top rounding if card has overflow hidden
-                    priority={index === 0} // Prioritize loading the first image
+                    priority={index === 0}
                   />
                 </div>
               </CarouselItem>
@@ -129,7 +123,7 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
       <CardContent className="p-4 md:p-6">
         <p className="text-sm text-foreground/90 dark:text-foreground/80 leading-relaxed">{post.description}</p>
       </CardContent>
-      <CardFooter className="flex justify-between items-center p-4 md:p-6 border-t border-border/60">
+      <CardFooter className="flex justify-between items-center p-4 md:p-6 border-t"> {/* Removed border/60 to use default theme border */}
         <div className="flex space-x-2 md:space-x-3">
           <Button variant="ghost" size="sm" onClick={handleLike} className="flex items-center space-x-1.5 text-muted-foreground hover:text-primary">
             <Heart className={`h-5 w-5 ${isLiked ? 'fill-destructive text-destructive' : 'text-foreground/70'}`} />

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,13 +60,12 @@ export default function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      // Check if user profile exists, if not create one
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       if (!userSnap.exists()) {
         const newUserProfile: UserProfile = {
           uid: user.uid,
-          name: user.displayName || user.email?.split('@')[0] || 'Anonymous Wanderer',
+          name: user.displayName || user.email?.split('@')[0] || 'Wanderer', // Default name
           email: user.email || '',
           avatar: user.photoURL || `https://placehold.co/100x100.png?text=${(user.displayName || user.email || 'U').charAt(0)}`,
           joinedAt: serverTimestamp(),
@@ -85,9 +85,9 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-card shadow-xl rounded-lg">
+    <div className="w-full max-w-md p-8 space-y-8 bg-card shadow-soft-xl rounded-xl"> {/* Updated shadow and rounded */}
       <div className="text-center">
-        <h1 className="font-headline text-3xl font-bold text-primary">Login to WanderMap</h1>
+        <h1 className="font-headline text-3xl font-bold text-primary">Login to WanderLink</h1> {/* Updated App Name */}
         <p className="text-muted-foreground">Access your travel journal and share new adventures.</p>
       </div>
       <Form {...form}>
@@ -99,7 +99,7 @@ export default function LoginForm() {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="you@example.com" {...field} />
+                  <Input placeholder="you@example.com" {...field} className="bg-input" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -112,13 +112,13 @@ export default function LoginForm() {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <Input type="password" placeholder="••••••••" {...field} className="bg-input" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"> {/* Using accent for submit */}
             Login
           </Button>
         </form>

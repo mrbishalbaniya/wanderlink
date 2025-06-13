@@ -8,7 +8,7 @@ import type { Post, UserProfile } from '@/types';
 import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { List, Map as MapIcon, Loader2, PlusCircle } from 'lucide-react'; // Renamed Map to MapIcon
+import { List, Map as MapIcon, Loader2, PlusCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -16,14 +16,13 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import Link from 'next/link';
 
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('list'); // Default to list view
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const fetchPosts = useCallback(async () => {
@@ -36,14 +35,12 @@ export default function HomePage() {
       const postsData = await Promise.all(postsSnapshot.docs.map(async (docSnapshot) => {
         const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
         
-        // Convert Firestore Timestamp to Date for client-side use
         if (post.createdAt && typeof (post.createdAt as Timestamp).toDate === 'function') {
           post.createdAtDate = (post.createdAt as Timestamp).toDate();
         } else if (post.createdAt instanceof Date) {
            post.createdAtDate = post.createdAt;
         }
 
-        // Fetch user profile for each post
         if (post.userId) {
           const userRef = doc(db, 'users', post.userId);
           const userSnap = await getDoc(userRef);
@@ -59,7 +56,6 @@ export default function HomePage() {
       setPosts(postsData);
     } catch (error) {
       console.error("Error fetching posts:", error);
-      // Add user-facing error handling, e.g., toast notification
     } finally {
       setLoading(false);
     }
@@ -74,9 +70,6 @@ export default function HomePage() {
     const post = posts.find(p => p.id === postId);
     if (post) {
       setSelectedPost(post);
-      if(window.innerWidth < 768) { // Open sheet if on mobile for map clicks
-         // Sheet opening is handled by `open` prop on Sheet component
-      }
     }
   }, [posts]);
   
@@ -94,15 +87,15 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-8rem)] p-4">
+      <div className="flex items-center justify-center h-[calc(100vh-12rem)]"> {/* Adjusted height for main layout padding */}
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
   }
   
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]"> {/* Adjust height considering header */}
-      <div className="p-4 flex justify-between items-center space-x-2 bg-background/80 dark:bg-background/70 backdrop-blur-md sticky top-16 z-30 shadow-sm"> {/* Header is 4rem (h-16) */}
+    <div className="flex flex-col h-full">
+      <div className="pb-4 flex justify-between items-center space-x-2 sticky top-0 z-10 bg-background/80 dark:bg-background/70 backdrop-blur-md pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4 shadow-sm">
         <div>
           <h1 className="text-2xl font-headline text-primary">Dashboard</h1>
           <p className="text-sm text-muted-foreground">Discover and share amazing travel experiences.</p>
@@ -114,7 +107,7 @@ export default function HomePage() {
           <Button variant={viewMode === 'list' ? 'default' : 'outline'} onClick={() => setViewMode('list')} size="sm" className="rounded-lg">
             <List className="mr-2 h-4 w-4" /> List View
           </Button>
-          <Button asChild size="sm" className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground">
+          <Button asChild size="sm" className="rounded-lg bg-accent hover:bg-accent/90 text-accent-foreground">
             <Link href="/create">
               <PlusCircle className="mr-2 h-4 w-4" /> New Post
             </Link>
@@ -124,16 +117,16 @@ export default function HomePage() {
 
       <div className="flex-1 overflow-hidden relative">
         {viewMode === 'map' && (
-          <InteractiveMap posts={posts} className="absolute inset-0" onPostClick={handlePostMarkerClick} />
+          <InteractiveMap posts={posts} className="absolute inset-0 rounded-xl shadow-soft-lg" onPostClick={handlePostMarkerClick} />
         )}
         {viewMode === 'list' && (
-          <ScrollArea className="h-full p-4 md:p-6">
+          <ScrollArea className="h-full pr-3"> {/* Added pr-3 for scrollbar spacing */}
             {posts.length === 0 && !loading ? (
-              <div className="text-center py-20">
+              <div className="text-center py-20 glassmorphic-card">
                 <MapIcon size={64} className="mx-auto text-muted-foreground/50 mb-4" />
-                <h2 className="text-xl font-semibold text-muted-foreground mb-2">No adventures yet!</h2>
+                <h2 className="text-xl font-semibold text-foreground mb-2">No adventures yet!</h2>
                 <p className="text-muted-foreground mb-6">Be the first to share your travel story or explore the map.</p>
-                <Button asChild size="lg">
+                <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
                   <Link href="/create">Create Your First Post</Link>
                 </Button>
               </div>
@@ -149,14 +142,14 @@ export default function HomePage() {
       </div>
       
       <Sheet open={!!selectedPost} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPost(null); }}>
-        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0" side="right">
+        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none" side="right"> {/* Apply glassmorphic to sheet */}
           {selectedPost && (
             <ScrollArea className="h-full">
-              <SheetHeader className="p-6 pb-2 sr-only"> {/* Title is in PostCard */}
+              <SheetHeader className="p-6 pb-2 sr-only">
                 <SheetTitle className="sr-only">{selectedPost.title}</SheetTitle>
                 <SheetDescription className="sr-only">Detailed view of: {selectedPost.description.substring(0,100)}</SheetDescription>
               </SheetHeader>
-              <div className="p-1"> {/* Add a little padding around the card in the sheet */}
+              <div className="p-1">
                 <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInList}/>
               </div>
             </ScrollArea>

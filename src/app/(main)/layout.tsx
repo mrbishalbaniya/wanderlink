@@ -1,6 +1,6 @@
 import Header from '@/components/layout/Header';
-import AppSidebar from '@/components/layout/AppSidebar'; // Import the new Sidebar
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'; // Import SidebarProvider and SidebarInset
+import AppSidebar from '@/components/layout/AppSidebar'; // This will be styled as SidebarNav
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 export default function MainLayout({
   children,
@@ -8,12 +8,13 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider defaultOpen={true}> {/* Wrap with SidebarProvider */}
-      <AppSidebar /> {/* Render the AppSidebar */}
-      <SidebarInset> {/* Main content area that adjusts to the sidebar */}
+    <SidebarProvider defaultOpen={true}>
+      <AppSidebar />
+      <SidebarInset>
         <div className="flex min-h-screen flex-col">
           <Header />
-          <main className="flex-1 bg-background"> {/* Ensure main has a background */}
+          {/* Ensure main content area has bg-background and padding */}
+          <main className="flex-1 bg-background p-4 md:p-6 lg:p-8">
             {children}
           </main>
         </div>

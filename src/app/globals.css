@@ -4,69 +4,93 @@
 
 @layer base {
   :root {
-    --background: 120 60% 97%; /* Honeydew */
-    --foreground: 146 25% 20%; /* Dark Green/Gray for text on Honeydew */
+    /* Primary Palette */
+    --background: 220 20% 97%; /* Lighter, cooler blue-gray */
+    --foreground: 220 10% 25%; /* Softer dark grey */
+    --primary: 210 100% 60%; /* Brighter Blue */
+    --primary-foreground: 0 0% 100%; /* White */
+    --accent: 170 80% 45%; /* Teal/Turquoise */
+    --accent-foreground: 0 0% 100%; /* White */
+
+    /* UI Element Colors */
     --card: 0 0% 100%; /* White */
-    --card-foreground: 146 25% 20%;
+    --card-rgb: 255, 255, 255; /* RGB for glassmorphic opacity */
+    --card-foreground: 220 10% 25%;
     --popover: 0 0% 100%;
-    --popover-foreground: 146 25% 20%;
-    --primary: 146 50% 36%; /* Sea Green */
-    --primary-foreground: 120 60% 97%; /* Honeydew - for text on primary */
-    --secondary: 130 40% 80%; /* Lighter Sea Green for secondary elements */
-    --secondary-foreground: 146 25% 20%;
-    --muted: 120 30% 90%; /* Light muted green */
-    --muted-foreground: 146 20% 40%;
-    --accent: 120 25% 65%; /* Dark Sea Green */
-    --accent-foreground: 0 0% 100%; /* White - for text on accent */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 146 30% 70%; /* Softened border color */
-    --input: 146 30% 85%; /* Input background */
-    --ring: 146 50% 36%; /* Sea Green for focus rings */
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --popover-foreground: 220 10% 25%;
+    --secondary: 220 15% 90%; /* Subtle backgrounds or elements */
+    --secondary-foreground: 220 10% 25%;
+    --muted: 220 15% 88%; /* Very subtle backgrounds or text */
+    --muted-foreground: 220 10% 45%; /* Slightly darker for muted text */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 20% 85%; /* Default border color */
+    --input: 220 15% 90%; /* Input background, same as secondary */
+    --ring: 210 100% 60%; /* Focus ring color, related to primary */
+
+    /* Chart Colors */
+    --chart-1: 210 100% 60%; /* primary */
+    --chart-2: 170 80% 45%; /* accent */
+    --chart-3: 30 90% 55%;  /* Orange-ish */
+    --chart-4: 270 70% 65%; /* Purple-ish */
+    --chart-5: 0 0% 50%;    /* Gray */
+
+    /* Sidebar Specific Colors */
+    --sidebar-background: 220 20% 95%; /* Slightly off-white for sidebar */
+    --sidebar-background-rgb: 240, 242, 247; /* RGB for glassmorphic sidebar */
+    --sidebar-foreground: 220 10% 25%;
+    --sidebar-primary: 210 100% 55%; /* Slightly darker primary for sidebar active */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 88%; /* Muted hover for sidebar items */
+    --sidebar-accent-foreground: 220 10% 20%;
+    --sidebar-border: 220 20% 80%;
+    --sidebar-ring: 210 100% 55%;
+
     --radius: 0.75rem; /* Increased radius for more rounded corners */
-    --sidebar-background: 120 60% 95%; /* Slightly darker Honeydew for sidebar */
-    --sidebar-foreground: 146 25% 20%;
-    --sidebar-primary: 146 50% 36%;
-    --sidebar-primary-foreground: 120 60% 97%;
-    --sidebar-accent: 120 25% 65%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 146 30% 70%;
-    --sidebar-ring: 146 50% 36%;
   }
 
   .dark {
-    --background: 146 25% 10%; /* Dark Slate Green */
-    --foreground: 120 60% 97%; /* Honeydew */
-    --card: 146 25% 15%; /* Darker card for dark mode */
-    --card-foreground: 120 60% 97%;
-    --popover: 146 25% 15%;
-    --popover-foreground: 120 60% 97%;
-    --primary: 146 50% 40%; /* Slightly lighter Sea Green for dark mode */
-    --primary-foreground: 0 0% 100%; 
-    --secondary: 146 25% 25%;
-    --secondary-foreground: 120 60% 97%;
-    --muted: 146 25% 20%;
-    --muted-foreground: 120 30% 70%;
-    --accent: 120 25% 55%; /* Slightly lighter Dark Sea Green for dark mode */
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 146 20% 30%;
-    --input: 146 20% 30%;
-    --ring: 146 50% 40%;
-    --sidebar-background: 146 25% 8%; /* Even darker sidebar for dark mode */
-    --sidebar-foreground: 120 60% 97%;
-    --sidebar-primary: 146 50% 40%;
+    /* Primary Palette */
+    --background: 220 15% 10%; /* Darker, cooler blue-gray */
+    --foreground: 220 10% 85%;
+    --primary: 210 100% 65%; /* Brighter Blue for dark mode */
+    --primary-foreground: 220 10% 10%;
+    --accent: 170 75% 55%; /* Teal/Turquoise for dark mode */
+    --accent-foreground: 220 10% 95%;
+
+    /* UI Element Colors */
+    --card: 220 15% 15%;
+    --card-rgb: 29, 35, 42; /* RGB for glassmorphic opacity */
+    --card-foreground: 220 10% 85%;
+    --popover: 220 15% 15%;
+    --popover-foreground: 220 10% 85%;
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 220 10% 85%;
+    --muted: 220 10% 25%;
+    --muted-foreground: 220 10% 65%; /* Lighter for muted text */
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 10% 30%;
+    --input: 220 15% 20%; /* Input background, same as secondary */
+    --ring: 210 100% 65%;
+
+    /* Chart Colors */
+    --chart-1: 210 100% 65%; /* primary */
+    --chart-2: 170 75% 55%; /* accent */
+    --chart-3: 30 80% 60%;  /* Orange-ish */
+    --chart-4: 270 60% 70%; /* Purple-ish */
+    --chart-5: 0 0% 70%;    /* Light Gray */
+
+    /* Sidebar Specific Colors */
+    --sidebar-background: 220 15% 12%; /* Slightly darker than card for sidebar */
+    --sidebar-background-rgb: 25, 30, 36; /* RGB for glassmorphic sidebar */
+    --sidebar-foreground: 220 10% 85%;
+    --sidebar-primary: 210 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 25% 55%;
-    --sidebar-accent-foreground: 0 0% 0%;
-    --sidebar-border: 146 20% 30%;
-    --sidebar-ring: 146 50% 40%;
+    --sidebar-accent: 220 15% 25%; /* Muted hover */
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 10% 25%;
+    --sidebar-ring: 210 100% 60%;
   }
 }
 
@@ -76,19 +100,30 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'PT Sans', sans-serif; /* Ensuring body font is set */
+    font-family: var(--font-body);
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif; /* Ensuring headline font is set */
+    @apply font-headline font-bold;
   }
 }
 
-/* Leaflet specific styles */
+/* Glassmorphism Utilities */
+@layer utilities {
+  .glassmorphic-card {
+    @apply bg-[rgba(var(--card-rgb),0.7)] dark:bg-[rgba(var(--card-rgb),0.6)] backdrop-blur-lg border border-white/20 dark:border-white/10 rounded-xl shadow-soft-lg;
+  }
+  .glassmorphic-sidebar {
+    @apply bg-[rgba(var(--sidebar-background-rgb),0.75)] dark:bg-[rgba(var(--sidebar-background-rgb),0.65)] backdrop-blur-xl border-r border-black/5 dark:border-white/5;
+  }
+}
+
+
+/* Leaflet specific styles (keeping existing, will adopt new theme colors) */
 .leaflet-popup-content-wrapper {
-  @apply bg-card/90 backdrop-blur-sm text-card-foreground rounded-lg shadow-lg;
+  @apply bg-popover/90 backdrop-blur-sm text-popover-foreground rounded-lg shadow-lg;
 }
 .leaflet-popup-tip {
-  @apply bg-card/90 backdrop-blur-sm;
+  @apply bg-popover/90 backdrop-blur-sm;
 }
 .leaflet-popup-content {
   @apply text-sm;

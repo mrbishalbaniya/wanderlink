@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,20 +46,18 @@ export default function SignupForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
       
-      // Update Firebase Auth profile
       await updateProfile(user, { displayName: values.name });
 
-      // Create user document in Firestore
       const newUserProfile: UserProfile = {
         uid: user.uid,
         name: values.name,
         email: values.email,
-        avatar: `https://placehold.co/100x100.png?text=${values.name.charAt(0).toUpperCase()}`, // Default avatar
+        avatar: `https://placehold.co/100x100.png?text=${values.name.charAt(0).toUpperCase()}`,
         joinedAt: serverTimestamp(),
       };
       await setDoc(doc(db, 'users', user.uid), newUserProfile);
 
-      toast({ title: 'Signup Successful', description: 'Welcome to WanderMap!' });
+      toast({ title: 'Signup Successful', description: 'Welcome to WanderLink!' }); // Updated App Name
       router.push('/');
     } catch (error: any) {
       toast({
@@ -75,13 +74,12 @@ export default function SignupForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user profile exists, if not create one
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       if (!userSnap.exists()) {
         const newUserProfile: UserProfile = {
           uid: user.uid,
-          name: user.displayName || user.email?.split('@')[0] || 'Anonymous Wanderer',
+          name: user.displayName || user.email?.split('@')[0] || 'Wanderer',
           email: user.email || '',
           avatar: user.photoURL || `https://placehold.co/100x100.png?text=${(user.displayName || user.email || 'U').charAt(0)}`,
           joinedAt: serverTimestamp(),
@@ -101,10 +99,10 @@ export default function SignupForm() {
   }
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-card shadow-xl rounded-lg">
+    <div className="w-full max-w-md p-8 space-y-8 bg-card shadow-soft-xl rounded-xl"> {/* Updated shadow and rounded */}
       <div className="text-center">
         <h1 className="font-headline text-3xl font-bold text-primary">Create an Account</h1>
-        <p className="text-muted-foreground">Join WanderMap and start sharing your journeys!</p>
+        <p className="text-muted-foreground">Join WanderLink and start sharing your journeys!</p> {/* Updated App Name */}
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -115,7 +113,7 @@ export default function SignupForm() {
               <FormItem>
                 <FormLabel>Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} />
+                  <Input placeholder="John Doe" {...field} className="bg-input" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -128,7 +126,7 @@ export default function SignupForm() {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="you@example.com" {...field} />
+                  <Input placeholder="you@example.com" {...field} className="bg-input" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -141,13 +139,13 @@ export default function SignupForm() {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <Input type="password" placeholder="••••••••" {...field} className="bg-input" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"> {/* Using accent for submit */}
             Sign Up
           </Button>
         </form>
