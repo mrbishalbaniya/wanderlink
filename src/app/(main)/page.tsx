@@ -19,13 +19,15 @@ import {
 } from "@/components/ui/sheet";
 import Link from 'next/link';
 import type { Map as LeafletMap } from 'leaflet';
+import { useRouter } from 'next/navigation'; // Added useRouter
 
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedPostForSheet, setSelectedPostForSheet] = useState<Post | null>(null); // Renamed for clarity
   const mapRefForPopupClose = useRef<LeafletMap | null>(null);
+  const router = useRouter(); // Initialize router
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -68,24 +70,25 @@ export default function HomePage() {
     fetchPosts();
   }, [fetchPosts]);
 
-  const handlePostMarkerClick = useCallback((postId: string) => {
-    const post = posts.find(p => p.id === postId);
-    if (post) {
-      mapRefForPopupClose.current?.closePopup(); // Close map popup before opening sheet
-      setSelectedPost(post);
-    }
-  }, [posts]);
+  const handlePostMarkerClickOnMap = useCallback((postId: string) => { // Renamed
+    mapRefForPopupClose.current?.closePopup(); // Close map popup before navigation
+    router.push(`/explore?postId=${postId}`);
+  }, [router]);
   
+  const handlePostCardClickInList = useCallback((post: Post) => { // New handler for list view
+    setSelectedPostForSheet(post);
+  }, []);
+
   const handleLikeUpdateInList = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
       currentPosts.map(p => 
         p.id === postId ? { ...p, likes: newLikes } : p
       )
     );
-     if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost(prev => prev ? { ...prev, likes: newLikes } : null);
+     if (selectedPostForSheet && selectedPostForSheet.id === postId) {
+      setSelectedPostForSheet(prev => prev ? { ...prev, likes: newLikes } : null);
     }
-  }, [selectedPost]);
+  }, [selectedPostForSheet]);
 
 
   if (loading) {
@@ -123,7 +126,7 @@ export default function HomePage() {
           <InteractiveMap 
             posts={posts} 
             className="absolute inset-0 rounded-xl shadow-soft-lg" 
-            onPostClick={handlePostMarkerClick} 
+            onPostClick={handlePostMarkerClickOnMap} 
             setMapInstance={(mapInstance) => mapRefForPopupClose.current = mapInstance}
           />
         )}
@@ -141,7 +144,10 @@ export default function HomePage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {posts.map(post => (
-                  <PostCard key={post.id} post={post} onLikeUpdate={handleLikeUpdateInList} />
+                  // For list view, clicking the card opens the sheet locally
+                  <div key={post.id} onClick={() => handlePostCardClickInList(post)} className="cursor-pointer">
+                    <PostCard post={post} onLikeUpdate={handleLikeUpdateInList} />
+                  </div>
                 ))}
               </div>
             )}
@@ -149,16 +155,17 @@ export default function HomePage() {
         )}
       </div>
       
-      <Sheet open={!!selectedPost} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPost(null); }}>
-        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right"> {/* Apply glassmorphic and higher z-index */}
-          {selectedPost && (
+      {/* This Sheet is now primarily for the List View on HomePage */}
+      <Sheet open={!!selectedPostForSheet} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPostForSheet(null); }}>
+        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right">
+          {selectedPostForSheet && (
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">
-                <SheetTitle className="sr-only">{selectedPost.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {selectedPost.description.substring(0,100)}</SheetDescription>
+                <SheetTitle className="sr-only">{selectedPostForSheet.title}</SheetTitle>
+                <SheetDescription className="sr-only">Detailed view of: {selectedPostForSheet.description.substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
-                <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInList}/>
+                <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInList}/>
               </div>
             </ScrollArea>
           )}

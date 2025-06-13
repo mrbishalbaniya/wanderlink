@@ -17,11 +17,14 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation'; // Added useSearchParams and useRouter
 
 export default function ExplorePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -63,6 +66,21 @@ export default function ExplorePage() {
     fetchPosts();
   }, [fetchPosts]);
 
+  // Effect to handle selecting post from query parameter
+  useEffect(() => {
+    if (!loading && posts.length > 0) {
+      const postIdFromQuery = searchParams.get('postId');
+      if (postIdFromQuery) {
+        const postToSelect = posts.find(p => p.id === postIdFromQuery);
+        if (postToSelect) {
+          setSelectedPost(postToSelect);
+          // Optional: Clear the query param after selection to prevent re-opening on simple refresh
+          // router.replace('/explore', { scroll: false }); 
+        }
+      }
+    }
+  }, [posts, loading, searchParams, router]); // Added router to dependencies for replace
+
   const handlePostCardClick = useCallback((post: Post) => {
     setSelectedPost(post);
   }, []);
@@ -78,7 +96,7 @@ export default function ExplorePage() {
     }
   }, [selectedPost]);
 
-  if (loading) {
+  if (loading && posts.length === 0) { // Keep loader if posts are not yet fetched, even with query param
     return (
       <div className="flex items-center justify-center h-[calc(100vh-12rem)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -114,7 +132,18 @@ export default function ExplorePage() {
         )}
       </ScrollArea>
       
-      <Sheet open={!!selectedPost} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPost(null); }}>
+      <Sheet 
+        open={!!selectedPost} 
+        onOpenChange={(isOpen) => { 
+          if (!isOpen) {
+            setSelectedPost(null);
+            // If the sheet was opened via query param, remove it when closing the sheet
+            if (searchParams.get('postId')) {
+              router.replace('/explore', { scroll: false });
+            }
+          }
+        }}
+      >
         <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right">
           {selectedPost && (
             <ScrollArea className="h-full">
