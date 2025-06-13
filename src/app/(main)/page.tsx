@@ -6,7 +6,7 @@ import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
 import type { Post, UserProfile } from '@/types';
 import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { List, Map as MapIcon, Loader2, PlusCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,12 +18,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import Link from 'next/link';
+import type { Map as LeafletMap } from 'leaflet';
 
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const mapRefForPopupClose = useRef<LeafletMap | null>(null);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -69,6 +71,7 @@ export default function HomePage() {
   const handlePostMarkerClick = useCallback((postId: string) => {
     const post = posts.find(p => p.id === postId);
     if (post) {
+      mapRefForPopupClose.current?.closePopup(); // Close map popup before opening sheet
       setSelectedPost(post);
     }
   }, [posts]);
@@ -117,7 +120,12 @@ export default function HomePage() {
 
       <div className="flex-1 overflow-hidden relative">
         {viewMode === 'map' && (
-          <InteractiveMap posts={posts} className="absolute inset-0 rounded-xl shadow-soft-lg" onPostClick={handlePostMarkerClick} />
+          <InteractiveMap 
+            posts={posts} 
+            className="absolute inset-0 rounded-xl shadow-soft-lg" 
+            onPostClick={handlePostMarkerClick} 
+            setMapInstance={(mapInstance) => mapRefForPopupClose.current = mapInstance}
+          />
         )}
         {viewMode === 'list' && (
           <ScrollArea className="h-full pr-3"> {/* Added pr-3 for scrollbar spacing */}
@@ -142,7 +150,7 @@ export default function HomePage() {
       </div>
       
       <Sheet open={!!selectedPost} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPost(null); }}>
-        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none" side="right"> {/* Apply glassmorphic to sheet */}
+        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right"> {/* Apply glassmorphic and higher z-index */}
           {selectedPost && (
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">

@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { LatLng, LatLngTuple } from 'leaflet';
+import type { LatLng, LatLngTuple, Map as LeafletMapInstance } from 'leaflet'; // Added LeafletMapInstance
 import L from 'leaflet'; // Import L directly
 import 'leaflet.markercluster'; // Import for side effects
 import type { Post, PostCategory } from '@/types';
@@ -75,6 +75,7 @@ interface InteractiveMapProps {
   zoom?: number;
   className?: string;
   onPostClick?: (postId: string) => void;
+  setMapInstance?: (map: LeafletMapInstance | null) => void; // Prop to pass map instance up, can be null
 }
 
 export default function InteractiveMap({
@@ -85,6 +86,7 @@ export default function InteractiveMap({
   zoom = 2,       
   className = "h-[500px] w-full",
   onPostClick,
+  setMapInstance,
 }: InteractiveMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -108,6 +110,10 @@ export default function InteractiveMap({
     mapRef.current = newMap;
     markersLayerRef.current = newMarkersLayer;
 
+    if (setMapInstance) {
+      setMapInstance(newMap); // Pass instance up
+    }
+
     if (onMapClick) {
       newMap.on('click', (e: L.LeafletMouseEvent) => {
         onMapClick(e.latlng);
@@ -119,13 +125,16 @@ export default function InteractiveMap({
 
     return () => {
       if (mapRef.current) {
+        if (setMapInstance) {
+          setMapInstance(null); 
+        }
         mapRef.current.remove();
       }
       mapRef.current = null;
       markersLayerRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.toString(), zoom, onMapClick]); // center needs stable comparison, stringify or use separate states if mutable. onMapClick should be stable via useCallback.
+  }, [center.toString(), zoom, onMapClick, setMapInstance]); // center needs stable comparison, stringify or use separate states if mutable. onMapClick should be stable via useCallback.
 
   // Effect for updating post markers
   useEffect(() => {
@@ -141,7 +150,10 @@ export default function InteractiveMap({
         .bindPopup(`<b>${post.title}</b><br>${post.description.substring(0,100)}...`);
         
         if(onPostClick) {
-          marker.on('click', () => onPostClick(post.id));
+          marker.on('click', () => {
+            // The popup closing is now handled in HomePage before opening the sheet for better control flow.
+            onPostClick(post.id);
+          });
         }
         markersLayerRef.current?.addLayer(marker);
       }
