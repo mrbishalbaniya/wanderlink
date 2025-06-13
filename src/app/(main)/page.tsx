@@ -4,7 +4,7 @@
 import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
 import type { Post, UserProfile } from '@/types';
-import { collection, onSnapshot, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore'; // Changed getDocs to onSnapshot
+import { collection, onSnapshot, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState, useCallback } from 'react';
 import { Loader2, Compass } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'; // Added usePathname
 
 export default function HomePage() { 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -25,6 +25,7 @@ export default function HomePage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname(); // Get current pathname
 
   useEffect(() => {
     setLoading(true);
@@ -63,7 +64,7 @@ export default function HomePage() {
       setLoading(false);
     });
 
-    return () => unsubscribe(); // Cleanup subscription on unmount
+    return () => unsubscribe(); 
   }, []);
 
   useEffect(() => {
@@ -146,10 +147,8 @@ export default function HomePage() {
         onOpenChange={(isOpen) => { 
           if (!isOpen) {
             setSelectedPost(null);
-            // Clear postId from URL if sheet is closed
             if (searchParams.get('postId')) {
-                const currentPath = router.pathname; // This might be just '/'
-                router.replace(currentPath, { scroll: false });
+                router.replace(pathname, { scroll: false }); // Use current pathname
             }
           }
         }}
@@ -159,7 +158,7 @@ export default function HomePage() {
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">
                 <SheetTitle className="sr-only">{selectedPost.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {selectedPost.description.substring(0,100)}</SheetDescription>
+                <SheetDescription className="sr-only">Detailed view of: {selectedPost.caption.substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
                 <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} />

@@ -13,13 +13,14 @@ export interface Post {
   userId: string;
   user?: UserProfile; 
   title: string;
-  description: string;
+  caption: string; // Renamed from description
   coordinates: Coordinates;
+  locationLabel?: string; // Added for human-readable location of the post
   category: PostCategory;
   images: string[];
   createdAt: Timestamp | Date; 
   likes: string[]; 
-  savedBy?: string[]; // Added for save/favorite feature
+  savedBy?: string[]; 
   createdAtDate?: Date; 
 }
 
@@ -34,18 +35,16 @@ export type SimplePreference = 'yes' | 'no' | 'ask' | '';
 
 export interface UserProfile {
   uid: string;
-  email: string; // From Firebase Auth, non-editable by user directly on this form
+  email: string; 
 
-  // Section 1: Basic Information
-  name: string; // Full Name
-  username?: string; // Unique, lowercase slug
-  avatar: string; // Profile Photo URL (Cloudinary)
-  dateOfBirth?: Timestamp | Date | null; // Store as Timestamp, handle as Date in form
+  name: string; 
+  username?: string; 
+  avatar: string; 
+  dateOfBirth?: Timestamp | Date | null; 
   gender?: Gender;
-  interestedIn?: InterestedIn[]; // Array for multi-select if needed, or single string
-  bio?: string; // Short bio/about me
+  interestedIn?: InterestedIn[]; 
+  bio?: string; 
 
-  // Section 2: Contact & Verification
   phoneNumber?: string;
   socialMediaLinks?: {
     instagram?: string;
@@ -55,64 +54,53 @@ export interface UserProfile {
     tiktok?: string;
     website?: string;
   };
-  emailVerified?: boolean; // From Firebase Auth
-  phoneVerified?: boolean; // Future implementation
+  emailVerified?: boolean; 
+  phoneVerified?: boolean; 
 
-  // Section 3: Travel Preferences
-  travelStyles?: TravelStyle[]; // e.g., ['adventure', 'budget']
-  favoriteDestinations?: string[]; // Tags or text
-  bucketList?: string[]; // Tags or text
+  travelStyles?: TravelStyle[]; 
+  favoriteDestinations?: string[]; 
+  bucketList?: string[]; 
   preferredTransportModes?: TransportMode[];
-  travelFrequency?: string; // e.g., "Once a year", "Multiple times a month"
-  travelAvailability?: string; // e.g., "Weekends", "Summer"
-  travelBudgetRange?: string; // e.g., "$ - Budget", "$$ - Mid-range", "$$$ - Luxury"
+  travelFrequency?: string; 
+  travelAvailability?: string; 
+  travelBudgetRange?: string; 
 
-  // Section 4: Interests & Hobbies
-  interests?: string[]; // General interests like "hiking", "photography"
-  languagesSpoken?: string[]; // e.g., ["English", "Spanish"]
+  interests?: string[]; 
+  languagesSpoken?: string[]; 
   musicPreferences?: string[];
   moviePreferences?: string[];
   bookPreferences?: string[];
 
-  // Section 5: Location Information
   currentLocation?: {
-    address?: string; // Full address string
-    coordinates?: Coordinates; // Lat/Lng
+    address?: string; 
+    coordinates?: Coordinates; 
   };
-  willingToTravelTo?: string[]; // Regions or countries
-  maxTravelDistance?: number; // In km or miles
+  willingToTravelTo?: string[]; 
+  maxTravelDistance?: number; 
 
-  // Section 6: Match Preferences
   matchPreferences?: {
-    ageRange?: { min: number; max: number } | null; // Made ageRange potentially null
-    genderPreference?: InterestedIn[] | null; // Who they are looking for in matches
-    lookingFor?: LookingFor[] | null; // e.g., ["friendship", "travel-buddy"]
+    ageRange?: { min: number; max: number } | null; 
+    genderPreference?: InterestedIn[] | null; 
+    lookingFor?: LookingFor[] | null; 
     smokingPreference?: SimplePreference | null;
     drinkingPreference?: SimplePreference | null;
     petFriendly?: boolean | null;
     expensesPreference?: ExpensePreference | null;
   };
 
-  // Section 7: Safety & Trust
-  idVerificationImageUrl?: string | null; // URL of uploaded ID (Cloudinary)
-  isIdVerified?: boolean; // Admin flag
+  idVerificationImageUrl?: string | null; 
+  isIdVerified?: boolean; 
   emergencyContact?: {
     name?: string | null;
     phone?: string | null;
     relationship?: string | null;
   };
-  // tripHistory?: any[]; // Array of trip IDs or summary objects - derived data
-  // reviewsReceived?: any[]; // Array of review IDs or summary objects - derived data
-  verifiedTravelerBadge?: boolean; // Derived from profile completion, ID verification, etc.
+  
+  profileCompletionScore?: number; 
 
-  // Section 8: Profile Completion Score
-  profileCompletionScore?: number; // Percentage 0-100
-
-  // Timestamps
   joinedAt: Timestamp | FieldValue;
-  lastUpdated?: Timestamp | FieldValue | null; // Make lastUpdated potentially null
+  lastUpdated?: Timestamp | FieldValue | null; 
 
-  // For client-side display, convert Timestamp to Date
   joinedAtDate?: Date;
   dateOfBirthDate?: Date | null;
   lastUpdatedDate?: Date | null;

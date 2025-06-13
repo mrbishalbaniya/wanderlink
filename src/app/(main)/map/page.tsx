@@ -17,7 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { Map as LeafletMap } from 'leaflet';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'; // Added usePathname, useSearchParams
 import Image from 'next/image';
 
 export default function MapPage() {
@@ -26,6 +26,9 @@ export default function MapPage() {
   const [selectedPostForSheet, setSelectedPostForSheet] = useState<Post | null>(null);
   const mapRefForPopupClose = useRef<LeafletMap | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -68,12 +71,13 @@ export default function MapPage() {
   }, [fetchPosts]);
 
   const handlePostMarkerClickOnMap = useCallback((postId: string) => {
-    mapRefForPopupClose.current?.closePopup(); // Close map popup
+    mapRefForPopupClose.current?.closePopup(); 
     const postToView = posts.find(p => p.id === postId);
     if (postToView) {
         setSelectedPostForSheet(postToView);
     } else {
-        router.push(`/?postId=${postId}`); // Updated to /?postId=
+        // If post not found locally (should be rare), redirect to main feed with postId
+        router.push(`/?postId=${postId}`); 
     }
   }, [posts, router]);
   
@@ -87,6 +91,18 @@ export default function MapPage() {
       setSelectedPostForSheet(prev => prev ? { ...prev, likes: newLikes } : null);
     }
   }, [selectedPostForSheet]);
+
+  const handleSaveUpdateInSheet = useCallback((postId: string, newSavedBy: string[]) => {
+    setPosts(currentPosts =>
+      currentPosts.map(p =>
+        p.id === postId ? { ...p, savedBy: newSavedBy } : p
+      )
+    );
+    if (selectedPostForSheet && selectedPostForSheet.id === postId) {
+      setSelectedPostForSheet(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
+    }
+  }, [selectedPostForSheet]);
+
 
   if (loading) {
     return (
@@ -111,7 +127,6 @@ export default function MapPage() {
                 <p className="text-muted-foreground mb-6 max-w-md">
                 No adventures have been plotted on the map yet. Why not be the first to share yours?
                 </p>
-                {/* <Image src="/images/placeholder-map.png" alt="Empty map placeholder" width={300} height={200} className="opacity-50 rounded-lg shadow-md" data-ai-hint="map illustration" /> */}
             </div>
         ) : (
             <InteractiveMap 
@@ -123,16 +138,26 @@ export default function MapPage() {
         )}
       </div>
       
-      <Sheet open={!!selectedPostForSheet} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPostForSheet(null); }}>
+      <Sheet 
+        open={!!selectedPostForSheet} 
+        onOpenChange={(isOpen) => { 
+            if (!isOpen) {
+                setSelectedPostForSheet(null);
+                 if (searchParams.get('postId')) { // Check if postId was in query
+                    router.replace(pathname, { scroll: false }); // Clear query params
+                }
+            }
+        }}
+      >
         <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right">
           {selectedPostForSheet && (
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">
                 <SheetTitle className="sr-only">{selectedPostForSheet.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {selectedPostForSheet.description.substring(0,100)}</SheetDescription>
+                <SheetDescription className="sr-only">Detailed view of: {selectedPostForSheet.caption.substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
-                <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInSheet}/>
+                <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInSheet} onSaveUpdate={handleSaveUpdateInSheet}/>
               </div>
             </ScrollArea>
           )}

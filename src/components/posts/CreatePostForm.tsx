@@ -18,24 +18,20 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase'; // storage is no longer needed from firebase for images
+import { db } from '@/lib/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-// Firebase Storage imports are removed: getDownloadURL, ref, uploadBytes
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import InteractiveMap from '@/components/map/InteractiveMap';
 import type { LatLng, LatLngTuple } from 'leaflet';
 import type { PostCategory } from '@/types';
-import { Loader2, UploadCloud, XCircle } from 'lucide-react';
+import { Loader2, UploadCloud, XCircle, Pin } from 'lucide-react'; // Added Pin
 import Image from 'next/image';
-// Assuming the AI flow is exported from an index file in src/ai/flows
-// import { detectDuplicateImage } from '@/ai/flows'; // Uncomment when AI flow is available
 
 const MAX_IMAGES = 5;
 const MAX_IMAGE_SIZE_MB = 5;
 
-// Log environment variables when the module loads (client-side)
 if (typeof window !== 'undefined') {
   console.log('[CreatePostForm Load] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:', process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
   console.log('[CreatePostForm Load] NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET:', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
@@ -44,7 +40,8 @@ if (typeof window !== 'undefined') {
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(100),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }).max(1000),
+  caption: z.string().min(10, { message: 'Caption must be at least 10 characters.' }).max(1000), // Renamed
+  locationLabel: z.string().max(100, { message: 'Location label must be at most 100 characters.'}).optional(), // Added
   category: z.enum(['hiking', 'city', 'beach', 'food', 'culture', 'nature', 'other']),
 });
 
@@ -56,7 +53,6 @@ export default function CreatePostForm() {
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // const [imageWarnings, setImageWarnings] = useState<string[]>([]); // For AI duplicate check
 
   const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
@@ -66,13 +62,13 @@ export default function CreatePostForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
-      description: '',
+      caption: '', // Renamed
+      locationLabel: '', // Added
       category: 'other',
     },
   });
 
   useEffect(() => {
-    // Revoke object URLs on cleanup
     return () => {
       imagePreviews.forEach(url => URL.revokeObjectURL(url));
     };
@@ -87,7 +83,6 @@ export default function CreatePostForm() {
       const filesArray = Array.from(event.target.files);
       const newImages: File[] = [];
       const newPreviews: string[] = [];
-      // const newWarnings: string[] = [];
 
       for (const file of filesArray) {
         if (images.length + newImages.length >= MAX_IMAGES) {
@@ -105,7 +100,6 @@ export default function CreatePostForm() {
 
       setImages(prev => [...prev, ...newImages]);
       setImagePreviews(prev => [...prev, ...newPreviews]);
-      // setImageWarnings(prev => [...prev, ...newWarnings]); // For AI duplicate check
       
       event.target.value = ''; 
     }
@@ -118,7 +112,6 @@ export default function CreatePostForm() {
       URL.revokeObjectURL(urlToRemove);
       return prev.filter((_, i) => i !== index);
     });
-    // setImageWarnings(prev => prev.filter((_, i) => i !== index)); // For AI duplicate check
   };
 
   const uploadImageToCloudinary = async (file: File): Promise<string> => {
@@ -180,13 +173,14 @@ export default function CreatePostForm() {
       const postData = {
         userId: currentUser.uid,
         title: values.title,
-        description: values.description,
+        caption: values.caption, // Renamed
+        locationLabel: values.locationLabel || null, // Added, store as null if empty
         coordinates: { latitude: selectedLocation[0], longitude: selectedLocation[1] },
         category: values.category as PostCategory,
         images: imageUrls,
         createdAt: serverTimestamp(),
         likes: [],
-        savedBy: [], // Initialize savedBy array
+        savedBy: [],
       };
       
       await addDoc(collection(db, 'posts'), postData);
@@ -225,12 +219,29 @@ export default function CreatePostForm() {
                   </FormItem>
                 )}
               />
-              <FormField
+               <FormField
                 control={form.control}
-                name="description"
+                name="locationLabel"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">Description</FormLabel>
+                    <FormLabel className="text-lg flex items-center">
+                      <Pin className="h-5 w-5 mr-2 text-muted-foreground" />
+                      Location Name (Optional)
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Eiffel Tower, Paris or Serene Beach Getaway" {...field} className="text-base"/>
+                    </FormControl>
+                    <FormDescription>A descriptive name for the location of your post.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="caption"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Caption</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Share details about your amazing experience..." {...field} rows={6} className="text-base"/>
                     </FormControl>
@@ -265,12 +276,12 @@ export default function CreatePostForm() {
             </div>
             <div className="space-y-6">
               <div>
-                <FormLabel className="text-lg">Location</FormLabel>
-                <FormDescription>Click on the map to select the location of your post.</FormDescription>
+                <FormLabel className="text-lg">Pin Location on Map</FormLabel>
+                <FormDescription>Click on the map to select the precise location of your post.</FormDescription>
                 <InteractiveMap 
                   onMapClick={handleMapClick} 
                   selectedLocation={selectedLocation}
-                  className="h-[300px] md:h-[420px] w-full mt-2 rounded-lg shadow-md"
+                  className="h-[300px] md:h-[calc(100%-110px)] min-h-[300px] w-full mt-2 rounded-lg shadow-md" // Adjusted height
                 />
                 {selectedLocation && (
                   <p className="text-sm text-muted-foreground mt-2">
@@ -309,7 +320,6 @@ export default function CreatePostForm() {
                     >
                       <XCircle className="h-4 w-4" />
                     </Button>
-                    {/* {imageWarnings[index] && <p className="text-xs text-destructive mt-1">{imageWarnings[index]}</p>} For AI duplicate check */}
                   </div>
                 ))}
               </div>

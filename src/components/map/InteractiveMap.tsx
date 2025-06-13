@@ -6,11 +6,10 @@ import type { LatLng, LatLngTuple, Map as LeafletMapInstance } from 'leaflet';
 import L from 'leaflet'; 
 import 'leaflet.markercluster'; 
 import type { Post, PostCategory } from '@/types';
-import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon, Home, Route as RouteIcon, ExternalLink } from 'lucide-react';
+import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon, Home, Route as RouteIcon, ExternalLink, Pin } from 'lucide-react'; // Added Pin
 import ReactDOMServer from 'react-dom/server';
 import { cn } from '@/lib/utils';
 
-// Fix default Leaflet icon paths if served locally
 if (typeof window !== 'undefined') {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
@@ -127,7 +126,6 @@ export default function InteractiveMap({
 
     if (onMapClick) {
       newMap.on('click', (e: L.LeafletMouseEvent) => {
-        // Clear route line if user clicks elsewhere on map
         if (routeLineRef.current && mapRef.current?.hasLayer(routeLineRef.current)) {
             mapRef.current.removeLayer(routeLineRef.current);
             routeLineRef.current = null;
@@ -212,7 +210,6 @@ export default function InteractiveMap({
     }
     markersLayerRef.current.clearLayers();
     
-    // Clear existing route line if posts are re-rendered/changed
     if (routeLineRef.current && mapRef.current.hasLayer(routeLineRef.current)) {
         mapRef.current.removeLayer(routeLineRef.current);
         routeLineRef.current = null;
@@ -240,9 +237,14 @@ export default function InteractiveMap({
         const titleEl = L.DomUtil.create('h3', 'font-bold text-base mb-0.5', popupElement);
         titleEl.innerText = post.title;
 
-        const description = post.description.length > 70 ? post.description.substring(0, 70) + '...' : post.description;
+        if (post.locationLabel) {
+            const locationLabelEl = L.DomUtil.create('p', 'text-xs text-muted-foreground mb-0.5 flex items-center', popupElement);
+            locationLabelEl.innerHTML = ReactDOMServer.renderToString(<Pin className="h-3 w-3 mr-1 text-accent" />) + post.locationLabel;
+        }
+
+        const captionText = post.caption.length > 70 ? post.caption.substring(0, 70) + '...' : post.caption;
         const descEl = L.DomUtil.create('p', 'text-xs text-muted-foreground mb-1.5', popupElement);
-        descEl.innerText = description;
+        descEl.innerText = captionText;
 
         const buttonsContainer = L.DomUtil.create('div', 'flex flex-col space-y-1.5 mt-2 pt-1.5 border-t border-border/50', popupElement);
 
@@ -284,7 +286,7 @@ export default function InteractiveMap({
           buttonEl.innerText = 'View Full Details →';
           L.DomEvent.on(buttonEl, 'click', (e) => {
             L.DomEvent.stopPropagation(e); 
-            if (mapRef.current) mapRef.current.closePopup(); // Close map popup before opening sheet
+            if (mapRef.current) mapRef.current.closePopup(); 
             onPostClick(post.id);
           });
         }
@@ -313,7 +315,7 @@ export default function InteractiveMap({
     if (selectedLocation) {
       const newSelectedMarker = L.marker(selectedLocation, { draggable: true })
         .addTo(mapRef.current)
-        .bindPopup('Selected Location. Drag to adjust.'); // Updated popup message
+        .bindPopup('Selected Location. Drag to adjust.'); 
       
       newSelectedMarker.on('dragend', (event) => {
         const marker = event.target;
@@ -337,4 +339,3 @@ export default function InteractiveMap({
     </>
   );
 }
-
