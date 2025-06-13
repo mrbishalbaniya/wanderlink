@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,7 +49,7 @@ export default function CreatePostForm() {
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // const [imageWarnings, setImageWarnings] = useState<string[]>([]); // For AI duplicate check
+  // const [imageWarnings, setImageWarnings] = useState<string[]>([]; // For AI duplicate check
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -130,24 +131,31 @@ export default function CreatePostForm() {
       toast({ title: 'Location Required', description: 'Please select a location on the map.', variant: 'destructive' });
       return;
     }
-    // if (imageWarnings.length > 0) { // For AI duplicate check
-    //   toast({ title: "Image Warnings", description: "Please review image warnings before submitting.", variant: "destructive"});
-    //   return;
-    // }
 
+    console.log('[CreatePostForm] Attempting to submit post with values:', values);
     setIsSubmitting(true);
 
     try {
       const imageUrls: string[] = [];
-      for (const image of images) {
-        const imageName = `${currentUser.uid}-${Date.now()}-${image.name}`;
-        const storageRef = ref(storage, `posts/${imageName}`);
-        await uploadBytes(storageRef, image);
-        const downloadURL = await getDownloadURL(storageRef);
-        imageUrls.push(downloadURL);
+      if (images.length > 0) {
+        console.log('[CreatePostForm] Starting image uploads...');
+        for (let i = 0; i < images.length; i++) {
+          const image = images[i];
+          console.log(`[CreatePostForm] Uploading image ${i + 1}/${images.length}: ${image.name}`);
+          const imageName = `${currentUser.uid}-${Date.now()}-${image.name}`;
+          const storageRef = ref(storage, `posts/${imageName}`);
+          await uploadBytes(storageRef, image);
+          console.log(`[CreatePostForm] Image ${i + 1} uploaded. Getting download URL...`);
+          const downloadURL = await getDownloadURL(storageRef);
+          imageUrls.push(downloadURL);
+          console.log(`[CreatePostForm] Image ${i + 1} URL: ${downloadURL}`);
+        }
+        console.log('[CreatePostForm] All images uploaded successfully.');
+      } else {
+        console.log('[CreatePostForm] No images to upload.');
       }
 
-      await addDoc(collection(db, 'posts'), {
+      const postData = {
         userId: currentUser.uid,
         title: values.title,
         description: values.description,
@@ -156,17 +164,23 @@ export default function CreatePostForm() {
         images: imageUrls,
         createdAt: serverTimestamp(),
         likes: [],
-      });
+      };
+      
+      console.log('[CreatePostForm] Adding document to Firestore with data:', postData);
+      await addDoc(collection(db, 'posts'), postData);
+      console.log('[CreatePostForm] Document added to Firestore successfully.');
 
       toast({ title: 'Post Created!', description: 'Your travel post has been successfully shared.' });
       router.push('/');
     } catch (error: any) {
+      console.error('[CreatePostForm] Error during post creation:', error);
       toast({
         title: 'Error Creating Post',
-        description: error.message || 'Could not create post. Please try again.',
+        description: `An error occurred: ${error.message || 'Could not create post. Please try again.'}`,
         variant: 'destructive',
       });
     } finally {
+      console.log('[CreatePostForm] Submission process finished. Setting isSubmitting to false.');
       setIsSubmitting(false);
     }
   }
@@ -299,3 +313,4 @@ export default function CreatePostForm() {
     </div>
   );
 }
+
