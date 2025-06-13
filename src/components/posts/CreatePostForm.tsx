@@ -18,9 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase'; // storage is no longer needed from firebase for images
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+// Firebase Storage imports are removed: getDownloadURL, ref, uploadBytes
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
@@ -49,7 +49,11 @@ export default function CreatePostForm() {
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // const [imageWarnings, setImageWarnings] = useState<string[]>([]; // For AI duplicate check
+  // const [imageWarnings, setImageWarnings] = useState<string[]>([]); // For AI duplicate check
+
+  const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -87,17 +91,6 @@ export default function CreatePostForm() {
           toast({ title: "File Too Large", description: `${file.name} exceeds ${MAX_IMAGE_SIZE_MB}MB limit.`, variant: "destructive" });
           continue;
         }
-
-        // Placeholder for AI duplicate check
-        // try {
-        //   const { isDuplicate, message } = await detectDuplicateImage(file);
-        //   if (isDuplicate) {
-        //     newWarnings.push(message || `${file.name} might be a duplicate.`);
-        //   }
-        // } catch (aiError) {
-        //   console.error("AI duplicate check failed:", aiError);
-        //   // Optionally inform user that check couldn't be performed
-        // }
         
         newImages.push(file);
         newPreviews.push(URL.createObjectURL(file));
@@ -107,7 +100,6 @@ export default function CreatePostForm() {
       setImagePreviews(prev => [...prev, ...newPreviews]);
       // setImageWarnings(prev => [...prev, ...newWarnings]); // For AI duplicate check
       
-      // Reset file input to allow selecting the same file again if removed
       event.target.value = ''; 
     }
   };
@@ -122,6 +114,34 @@ export default function CreatePostForm() {
     // setImageWarnings(prev => prev.filter((_, i) => i !== index)); // For AI duplicate check
   };
 
+  const uploadImageToCloudinary = async (file: File): Promise<string> => {
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      console.error("Cloudinary environment variables not set.");
+      throw new Error("Cloudinary configuration is missing.");
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    console.log(`[Cloudinary] Uploading ${file.name} to ${CLOUDINARY_CLOUD_NAME}`);
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+    const data = await response.json();
+    if (data.secure_url) {
+      console.log(`[Cloudinary] Uploaded ${file.name} successfully: ${data.secure_url}`);
+      return data.secure_url;
+    } else {
+      console.error("[Cloudinary] Upload failed:", data.error?.message || data);
+      throw new Error(data.error?.message || 'Cloudinary upload failed');
+    }
+  };
+
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!currentUser) {
       toast({ title: 'Authentication Required', description: 'Please login to create a post.', variant: 'destructive' });
@@ -131,6 +151,12 @@ export default function CreatePostForm() {
       toast({ title: 'Location Required', description: 'Please select a location on the map.', variant: 'destructive' });
       return;
     }
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      toast({ title: 'Configuration Error', description: 'Cloudinary is not configured. Please contact support.', variant: 'destructive' });
+      console.error("Attempted to submit post but Cloudinary env vars are missing.");
+      return;
+    }
+
 
     console.log('[CreatePostForm] Attempting to submit post with values:', values);
     setIsSubmitting(true);
@@ -138,19 +164,15 @@ export default function CreatePostForm() {
     try {
       const imageUrls: string[] = [];
       if (images.length > 0) {
-        console.log('[CreatePostForm] Starting image uploads...');
+        console.log('[CreatePostForm] Starting image uploads to Cloudinary...');
         for (let i = 0; i < images.length; i++) {
           const image = images[i];
-          console.log(`[CreatePostForm] Uploading image ${i + 1}/${images.length}: ${image.name}`);
-          const imageName = `${currentUser.uid}-${Date.now()}-${image.name}`;
-          const storageRef = ref(storage, `posts/${imageName}`);
-          await uploadBytes(storageRef, image);
-          console.log(`[CreatePostForm] Image ${i + 1} uploaded. Getting download URL...`);
-          const downloadURL = await getDownloadURL(storageRef);
+          console.log(`[CreatePostForm] Uploading image ${i + 1}/${images.length}: ${image.name} to Cloudinary`);
+          const downloadURL = await uploadImageToCloudinary(image);
           imageUrls.push(downloadURL);
-          console.log(`[CreatePostForm] Image ${i + 1} URL: ${downloadURL}`);
+          console.log(`[CreatePostForm] Image ${i + 1} Cloudinary URL: ${downloadURL}`);
         }
-        console.log('[CreatePostForm] All images uploaded successfully.');
+        console.log('[CreatePostForm] All images uploaded to Cloudinary successfully.');
       } else {
         console.log('[CreatePostForm] No images to upload.');
       }
@@ -313,4 +335,3 @@ export default function CreatePostForm() {
     </div>
   );
 }
-
