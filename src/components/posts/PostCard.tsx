@@ -80,7 +80,7 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
   const userAvatar = post.user?.avatar || `https://placehold.co/40x40.png?text=${userName.charAt(0)}`;
 
   return (
-    <Card className="w-full overflow-hidden glassmorphic-card"> {/* Applied glassmorphic-card */}
+    <Card className="w-full overflow-hidden glassmorphic-card">
       <CardHeader className="flex flex-row items-center space-x-3 p-4 md:p-6">
         <Avatar className="h-11 w-11">
           <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait" />
@@ -104,7 +104,7 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
                     alt={`${post.title} image ${index + 1}`} 
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover" // Removed rounded-t-none as card handles overflow
+                    className="object-cover"
                     data-ai-hint="travel landscape"
                     priority={index === 0}
                   />
@@ -121,9 +121,9 @@ export default function PostCard({ post, onLikeUpdate }: PostCardProps) {
         </Carousel>
       )}
       <CardContent className="p-4 md:p-6">
-        <p className="text-sm text-foreground/90 dark:text-foreground/80 leading-relaxed">{post.description}</p>
+        <p className="text-sm text-foreground/90 dark:text-foreground/80 leading-relaxed max-h-32 overflow-y-auto pr-2">{post.description}</p>
       </CardContent>
-      <CardFooter className="flex justify-between items-center p-4 md:p-6 border-t"> {/* Removed border/60 to use default theme border */}
+      <CardFooter className="flex justify-between items-center p-4 md:p-6 border-t">
         <div className="flex space-x-2 md:space-x-3">
           <Button variant="ghost" size="sm" onClick={handleLike} className="flex items-center space-x-1.5 text-muted-foreground hover:text-primary">
             <Heart className={`h-5 w-5 ${isLiked ? 'fill-destructive text-destructive' : 'text-foreground/70'}`} />
