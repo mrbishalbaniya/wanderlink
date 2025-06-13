@@ -73,9 +73,7 @@ export default function MapPage() {
     if (postToView) {
         setSelectedPostForSheet(postToView);
     } else {
-        // Fallback: if post not found in current list (should ideally not happen if posts are up to date)
-        // navigate to explore page with postId as a fallback, or show a toast.
-        router.push(`/explore?postId=${postId}`);
+        router.push(`/?postId=${postId}`); // Updated to /?postId=
     }
   }, [posts, router]);
   
@@ -113,7 +111,6 @@ export default function MapPage() {
                 <p className="text-muted-foreground mb-6 max-w-md">
                 No adventures have been plotted on the map yet. Why not be the first to share yours?
                 </p>
-                {/* Placeholder image can be added here if desired */}
                 {/* <Image src="/images/placeholder-map.png" alt="Empty map placeholder" width={300} height={200} className="opacity-50 rounded-lg shadow-md" data-ai-hint="map illustration" /> */}
             </div>
         ) : (
