@@ -17,15 +17,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import Link from 'next/link';
-// Removed: import type { Map as LeafletMap } from 'leaflet';
-// Removed: import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Added useRouter
 
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPostForSheet, setSelectedPostForSheet] = useState<Post | null>(null);
-  // Removed: const mapRefForPopupClose = useRef<LeafletMap | null>(null);
-  // Removed: const router = useRouter(); 
+  const router = useRouter(); 
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -82,6 +80,10 @@ export default function HomePage() {
       setSelectedPostForSheet(prev => prev ? { ...prev, likes: newLikes } : null);
     }
   }, [selectedPostForSheet]);
+  
+  const handlePostMarkerClick = useCallback((postId: string) => {
+     router.push(`/explore?postId=${postId}`);
+  }, [router]);
 
 
   if (loading) {
@@ -96,11 +98,10 @@ export default function HomePage() {
     <div className="flex flex-col h-full">
       <div className="pb-4 flex justify-between items-center space-x-2 sticky top-0 z-10 bg-background/80 dark:bg-background/70 backdrop-blur-md pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4 shadow-sm">
         <div>
-          <h1 className="text-2xl font-headline text-primary">Dashboard</h1>
+          <h1 className="text-2xl font-headline text-primary">Feed</h1>
           <p className="text-sm text-muted-foreground">Recent travel experiences from the community.</p>
         </div>
         <div className="flex items-center space-x-2">
-          {/* Removed Map/List view toggle buttons */}
           <Button asChild size="sm" className="rounded-lg bg-accent hover:bg-accent/90 text-accent-foreground">
             <Link href="/create">
               <PlusCircle className="mr-2 h-4 w-4" /> New Post

@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Compass, MessageSquare, Users, User, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe } from 'lucide-react'; // Added Globe
+import { LayoutDashboard, Compass, MessageSquare, Users, User, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe, CalendarClock } from 'lucide-react'; // Added Globe, CalendarClock
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,9 +29,10 @@ import {
 import { cn } from '@/lib/utils'; 
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/', label: 'Feed', icon: LayoutDashboard }, // Renamed from Dashboard
+  { href: '/upcoming', label: 'Upcoming Feed', icon: CalendarClock }, // New item
   { href: '/explore', label: 'Explore Trips', icon: Compass }, 
-  { href: '/map', label: 'Global Map', icon: Globe }, // New Map link
+  { href: '/map', label: 'Global Map', icon: Globe },
   { href: '/match', label: 'Match', icon: HeartHandshake },
   { href: '/chat', label: 'Messages', icon: MessageSquare },
   { href: '/friends', label: 'Friends', icon: Users }, 
