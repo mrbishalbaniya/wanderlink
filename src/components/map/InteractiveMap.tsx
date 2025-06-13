@@ -75,7 +75,7 @@ interface InteractiveMapProps {
   zoom?: number;
   className?: string;
   onPostClick?: (postId: string) => void;
-  setMapInstance?: (map: LeafletMapInstance | null) => void; // Prop to pass map instance up, can be null
+  setMapInstance?: (map: LeafletMapInstance | null) => void; 
 }
 
 export default function InteractiveMap({
@@ -93,9 +93,8 @@ export default function InteractiveMap({
   const markersLayerRef = useRef<L.MarkerClusterGroup | null>(null);
   const selectedMarkerRef = useRef<L.Marker | null>(null);
 
-  // Effect for map creation, view, and base tile layer
   useEffect(() => {
-    if (typeof window === 'undefined' || !mapContainerRef.current || mapRef.current) { // Prevent re-initialization
+    if (typeof window === 'undefined' || !mapContainerRef.current || mapRef.current) { 
       return;
     }
 
@@ -111,7 +110,7 @@ export default function InteractiveMap({
     markersLayerRef.current = newMarkersLayer;
 
     if (setMapInstance) {
-      setMapInstance(newMap); // Pass instance up
+      setMapInstance(newMap); 
     }
 
     if (onMapClick) {
@@ -134,9 +133,8 @@ export default function InteractiveMap({
       markersLayerRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.toString(), zoom, onMapClick, setMapInstance]); // center needs stable comparison, stringify or use separate states if mutable. onMapClick should be stable via useCallback.
+  }, [center.toString(), zoom, onMapClick, setMapInstance]); 
 
-  // Effect for updating post markers
   useEffect(() => {
     if (!mapRef.current || !markersLayerRef.current) {
       return;
@@ -146,21 +144,37 @@ export default function InteractiveMap({
       if (post.coordinates) {
         const marker = L.marker([post.coordinates.latitude, post.coordinates.longitude], {
           icon: createCustomIcon(post.category || 'other'),
-        })
-        .bindPopup(`<b>${post.title}</b><br>${post.description.substring(0,100)}...`);
+        });
         
-        if(onPostClick) {
-          marker.on('click', () => {
-            // The popup closing is now handled in HomePage before opening the sheet for better control flow.
+        // Create popup content with a "View Details" link/button
+        const popupElement = L.DomUtil.create('div', 'custom-leaflet-popup p-1 min-w-[180px]'); // Added min-width
+        
+        const titleEl = L.DomUtil.create('h3', 'font-bold text-sm mb-0.5', popupElement); // Adjusted text size
+        titleEl.innerText = post.title;
+
+        const description = post.description.length > 70 ? post.description.substring(0, 70) + '...' : post.description;
+        const descEl = L.DomUtil.create('p', 'text-xs text-muted-foreground mb-1.5', popupElement);
+        descEl.innerText = description;
+
+        if (onPostClick) {
+          const buttonEl = L.DomUtil.create('button', 'text-primary text-xs hover:underline font-medium', popupElement);
+          buttonEl.innerText = 'View Details →';
+          L.DomEvent.on(buttonEl, 'click', (e) => {
+            L.DomEvent.stopPropagation(e); // Important to stop event from bubbling to map
             onPostClick(post.id);
           });
         }
+        
+        marker.bindPopup(popupElement, {
+          closeButton: true,
+          minWidth: 180, // Ensure popup has some minimum width
+        });
+        
         markersLayerRef.current?.addLayer(marker);
       }
     });
   }, [posts, onPostClick]);
 
-  // Effect for selected location marker
   useEffect(() => {
     if (!mapRef.current) {
       return;
@@ -184,7 +198,6 @@ export default function InteractiveMap({
       
       selectedMarkerRef.current = newSelectedMarker;
       
-      // If onMapClick is defined, this map is likely for selection, so zoom in.
       const targetZoom = onMapClick ? 13 : mapRef.current.getZoom();
       mapRef.current.setView(selectedLocation, targetZoom);
     }
