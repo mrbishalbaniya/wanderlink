@@ -6,7 +6,7 @@ import type { LatLng, LatLngTuple, Map as LeafletMapInstance } from 'leaflet';
 import L from 'leaflet'; 
 import 'leaflet.markercluster'; 
 import type { Post, PostCategory } from '@/types';
-import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon, Home } from 'lucide-react';
+import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon, Home, Route as RouteIcon, ExternalLink } from 'lucide-react';
 import ReactDOMServer from 'react-dom/server';
 import { cn } from '@/lib/utils';
 
@@ -92,6 +92,7 @@ export default function InteractiveMap({
   const markersLayerRef = useRef<L.MarkerClusterGroup | null>(null);
   const selectedMarkerRef = useRef<L.Marker | null>(null);
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
+  const routeLineRef = useRef<L.Polyline | null>(null);
 
   const [userLocation, setUserLocation] = useState<LatLngTuple | null>(null);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
@@ -117,8 +118,20 @@ export default function InteractiveMap({
       setMapInstance(newMap); 
     }
 
+    newMap.on('popupclose', () => {
+        if (routeLineRef.current && mapRef.current?.hasLayer(routeLineRef.current)) {
+            mapRef.current.removeLayer(routeLineRef.current);
+            routeLineRef.current = null;
+        }
+    });
+
     if (onMapClick) {
       newMap.on('click', (e: L.LeafletMouseEvent) => {
+        // Clear route line if user clicks elsewhere on map
+        if (routeLineRef.current && mapRef.current?.hasLayer(routeLineRef.current)) {
+            mapRef.current.removeLayer(routeLineRef.current);
+            routeLineRef.current = null;
+        }
         onMapClick(e.latlng);
       });
     }
@@ -134,6 +147,7 @@ export default function InteractiveMap({
       }
       mapRef.current = null;
       markersLayerRef.current = null;
+      if (routeLineRef.current) routeLineRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center.toString(), zoom, onMapClick, setMapInstance]); 
@@ -148,13 +162,12 @@ export default function InteractiveMap({
         (error) => {
           console.error("Error getting user location:", error);
           setGeolocationError(error.message || "Could not retrieve location. Please ensure location services are enabled.");
-          // Consider using a toast to inform the user if location access is denied or fails.
         }
       );
     } else {
       setGeolocationError("Geolocation is not supported by this browser.");
     }
-  }, []); // Run once on mount to get user's location
+  }, []);
 
   useEffect(() => {
     if (mapRef.current && userLocation) {
@@ -176,9 +189,9 @@ export default function InteractiveMap({
             <Home size={16} />
           </div>
         ),
-        className: 'custom-user-marker-icon', // Can add specific CSS if needed
+        className: 'custom-user-marker-icon', 
         iconSize: [28, 28],
-        iconAnchor: [14, 14], // Center the icon
+        iconAnchor: [14, 14], 
         popupAnchor: [0, -14]
       });
 
@@ -189,8 +202,6 @@ export default function InteractiveMap({
           .addTo(mapRef.current)
           .bindPopup("Your current location");
       }
-      // Optionally, pan to user's location when first found
-      // mapRef.current.panTo(userLocation);
     }
   }, [userLocation]);
 
@@ -200,60 +211,94 @@ export default function InteractiveMap({
       return;
     }
     markersLayerRef.current.clearLayers();
+    
+    // Clear existing route line if posts are re-rendered/changed
+    if (routeLineRef.current && mapRef.current.hasLayer(routeLineRef.current)) {
+        mapRef.current.removeLayer(routeLineRef.current);
+        routeLineRef.current = null;
+    }
+
     posts.forEach(post => {
       if (post.coordinates) {
         const marker = L.marker([post.coordinates.latitude, post.coordinates.longitude], {
           icon: createCustomIcon(post.category || 'other'),
         });
         
-        const popupElement = L.DomUtil.create('div', 'custom-leaflet-popup p-1 min-w-[180px]');
+        const popupElement = L.DomUtil.create('div', 'custom-leaflet-popup p-2 min-w-[220px] space-y-2');
         
         if (post.images && post.images.length > 0) {
           const imgEl = L.DomUtil.create('img', '', popupElement);
           imgEl.src = post.images[0];
           imgEl.alt = post.title;
           imgEl.style.width = '100%';
-          imgEl.style.maxHeight = '80px';
+          imgEl.style.maxHeight = '100px';
           imgEl.style.objectFit = 'cover';
           imgEl.style.borderRadius = '4px';
-          imgEl.style.marginBottom = '4px';
+          imgEl.style.marginBottom = '6px';
         }
         
-        const titleEl = L.DomUtil.create('h3', 'font-bold text-sm mb-0.5', popupElement);
+        const titleEl = L.DomUtil.create('h3', 'font-bold text-base mb-0.5', popupElement);
         titleEl.innerText = post.title;
 
         const description = post.description.length > 70 ? post.description.substring(0, 70) + '...' : post.description;
         const descEl = L.DomUtil.create('p', 'text-xs text-muted-foreground mb-1.5', popupElement);
         descEl.innerText = description;
 
-        if (onPostClick) {
-          const buttonEl = L.DomUtil.create('button', 'text-primary text-xs hover:underline font-medium', popupElement);
-          buttonEl.innerText = 'View Details →';
-          L.DomEvent.on(buttonEl, 'click', (e) => {
-            L.DomEvent.stopPropagation(e); 
-            onPostClick(post.id);
-          });
-        }
+        const buttonsContainer = L.DomUtil.create('div', 'flex flex-col space-y-1.5 mt-2 pt-1.5 border-t border-border/50', popupElement);
 
         if (userLocation && post.coordinates) {
-          const directionsButtonEl = L.DomUtil.create('button', 'text-accent text-xs hover:underline font-medium mt-1.5 block w-full text-left', popupElement);
-          directionsButtonEl.innerText = 'Get Directions ↗';
-          L.DomEvent.on(directionsButtonEl, 'click', (e) => {
+          const showRouteButtonEl = L.DomUtil.create('button', 'flex items-center justify-center text-xs text-accent hover:text-accent/80 font-medium p-1.5 rounded-md border border-accent/50 hover:bg-accent/10 w-full transition-colors', buttonsContainer);
+          showRouteButtonEl.innerHTML = ReactDOMServer.renderToString(<RouteIcon className="h-4 w-4 mr-1.5" />) + 'Show Route on Map';
+          L.DomEvent.on(showRouteButtonEl, 'click', (e) => {
             L.DomEvent.stopPropagation(e);
-            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLocation[0]},${userLocation[1]}&destination=${post.coordinates.latitude},${post.coordinates.longitude}&travelmode=driving`;
-            window.open(mapsUrl, '_blank');
+            if (mapRef.current) {
+              if (routeLineRef.current && mapRef.current.hasLayer(routeLineRef.current)) {
+                mapRef.current.removeLayer(routeLineRef.current);
+                routeLineRef.current = null;
+              }
+              if (userLocation && post.coordinates) {
+                const newRouteLine = L.polyline(
+                  [userLocation, [post.coordinates.latitude, post.coordinates.longitude]],
+                  { color: 'hsl(var(--accent))', weight: 4, opacity: 0.8, dashArray: '5, 5' }
+                ).addTo(mapRef.current);
+                routeLineRef.current = newRouteLine;
+                mapRef.current.fitBounds(L.latLngBounds(userLocation, [post.coordinates.latitude, post.coordinates.longitude]), { padding: [50, 50] });
+              }
+            }
+          });
+        }
+        
+        const openInGMapsButtonEl = L.DomUtil.create('button', 'flex items-center justify-center text-xs text-primary hover:text-primary/80 font-medium p-1.5 rounded-md border border-primary/50 hover:bg-primary/10 w-full transition-colors', buttonsContainer);
+        openInGMapsButtonEl.innerHTML = ReactDOMServer.renderToString(<ExternalLink className="h-4 w-4 mr-1.5" />) + 'Open in Google Maps';
+        L.DomEvent.on(openInGMapsButtonEl, 'click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          let mapsUrl = `https://www.google.com/maps/search/?api=1&query=${post.coordinates.latitude},${post.coordinates.longitude}`;
+          if (userLocation) {
+             mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLocation[0]},${userLocation[1]}&destination=${post.coordinates.latitude},${post.coordinates.longitude}&travelmode=driving`;
+          }
+          window.open(mapsUrl, '_blank');
+        });
+
+        if (onPostClick) {
+          const buttonEl = L.DomUtil.create('button', 'flex items-center justify-center text-xs text-foreground/80 hover:text-foreground font-medium p-1.5 rounded-md border border-border hover:bg-muted w-full transition-colors', buttonsContainer);
+          buttonEl.innerText = 'View Full Details →';
+          L.DomEvent.on(buttonEl, 'click', (e) => {
+            L.DomEvent.stopPropagation(e); 
+            if (mapRef.current) mapRef.current.closePopup(); // Close map popup before opening sheet
+            onPostClick(post.id);
           });
         }
         
         marker.bindPopup(popupElement, {
           closeButton: true,
-          minWidth: 180, 
+          minWidth: 220, 
         });
         
         markersLayerRef.current?.addLayer(marker);
       }
     });
-  }, [posts, onPostClick, userLocation]); // Add userLocation to dependency array for directions link
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts, onPostClick, userLocation]);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -268,7 +313,7 @@ export default function InteractiveMap({
     if (selectedLocation) {
       const newSelectedMarker = L.marker(selectedLocation, { draggable: true })
         .addTo(mapRef.current)
-        .bindPopup('Selected Location');
+        .bindPopup('Selected Location. Drag to adjust.'); // Updated popup message
       
       newSelectedMarker.on('dragend', (event) => {
         const marker = event.target;
@@ -278,7 +323,7 @@ export default function InteractiveMap({
       
       selectedMarkerRef.current = newSelectedMarker;
       
-      const targetZoom = onMapClick ? 13 : mapRef.current.getZoom();
+      const targetZoom = onMapClick ? 13 : (mapRef.current.getZoom() < 5 ? 13 : mapRef.current.getZoom());
       mapRef.current.setView(selectedLocation, targetZoom);
     }
   }, [selectedLocation, onMapClick]);
