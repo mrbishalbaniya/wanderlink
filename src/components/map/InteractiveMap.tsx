@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -6,7 +7,7 @@ import 'leaflet.markercluster'; // Import for side effects
 import type { Post, PostCategory } from '@/types';
 import { Mountain, Building2, Waves, Utensils, Landmark, Trees, MapPin as OtherPinIcon } from 'lucide-react';
 import ReactDOMServer from 'react-dom/server';
-import { cn } from '@/lib/utils'; // Added import
+import { cn } from '@/lib/utils';
 
 // Fix default Leaflet icon paths if served locally
 // User must place these images in public/images/
@@ -110,17 +111,17 @@ export default function InteractiveMap({
      // Cleanup function
     return () => {
       if (mapRef.current) {
-        mapRef.current.remove();
+        mapRef.current.remove(); // This should also clean up listeners attached to the map instance.
         mapRef.current = null;
-        setMapInitialized(false); // Reset initialization state
+        // setMapInitialized(false); // Removed this line
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center, zoom, onMapClick]); // Only re-init if core props change, or map needs click handler
+  }, [center, zoom, onMapClick]); // mapInitialized is NOT a dependency here intentionally
 
   useEffect(() => {
-    if (mapRef.current && markersLayerRef.current) {
-      markersLayerRef.current.clearLayers();
+    if (mapRef.current && markersLayerRef.current && mapInitialized) { // Ensure map is initialized
+      markersLayerRef.current.clearLayers(); // Clear old markers
       posts.forEach(post => {
         if (post.coordinates) {
           const marker = L.marker([post.coordinates.latitude, post.coordinates.longitude], {
@@ -129,7 +130,11 @@ export default function InteractiveMap({
           .bindPopup(`<b>${post.title}</b><br>${post.description.substring(0,100)}...`);
           
           if(onPostClick) {
-            marker.on('click', () => onPostClick(post.id));
+            // Define the handler function separately to potentially help with debugging or future memoization
+            const handleMarkerClick = () => {
+              onPostClick(post.id);
+            };
+            marker.on('click', handleMarkerClick);
           }
           markersLayerRef.current?.addLayer(marker);
         }
@@ -138,24 +143,26 @@ export default function InteractiveMap({
   }, [posts, mapInitialized, onPostClick]);
 
   useEffect(() => {
-    if (mapRef.current && selectedLocation) {
-      if (selectedMarkerRef.current) {
-        selectedMarkerRef.current.setLatLng(selectedLocation);
-      } else {
-        selectedMarkerRef.current = L.marker(selectedLocation, { draggable: true })
-          .addTo(mapRef.current)
-          .bindPopup('Selected Location');
-        
-        selectedMarkerRef.current.on('dragend', (event) => {
-            const marker = event.target;
-            const position = marker.getLatLng();
-            if(onMapClick) onMapClick(position);
-        });
-      }
-      mapRef.current.setView(selectedLocation, mapRef.current.getZoom()); // Optionally zoom/pan to selected location
-    } else if (mapRef.current && !selectedLocation && selectedMarkerRef.current) {
-        mapRef.current.removeLayer(selectedMarkerRef.current);
-        selectedMarkerRef.current = null;
+    if (mapRef.current && mapInitialized) { // Ensure map is initialized
+        if (selectedLocation) {
+            if (selectedMarkerRef.current) {
+                selectedMarkerRef.current.setLatLng(selectedLocation);
+            } else {
+                selectedMarkerRef.current = L.marker(selectedLocation, { draggable: true })
+                .addTo(mapRef.current)
+                .bindPopup('Selected Location');
+                
+                selectedMarkerRef.current.on('dragend', (event) => {
+                    const marker = event.target;
+                    const position = marker.getLatLng();
+                    if(onMapClick) onMapClick(position);
+                });
+            }
+            mapRef.current.setView(selectedLocation, mapRef.current.getZoom());
+        } else if (selectedMarkerRef.current) { // If no selectedLocation, but marker exists, remove it
+            mapRef.current.removeLayer(selectedMarkerRef.current);
+            selectedMarkerRef.current = null;
+        }
     }
   }, [selectedLocation, mapInitialized, onMapClick]);
   
