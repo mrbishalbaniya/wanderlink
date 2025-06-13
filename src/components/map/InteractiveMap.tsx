@@ -242,7 +242,8 @@ export default function InteractiveMap({
             locationLabelEl.innerHTML = ReactDOMServer.renderToString(<Pin className="h-3 w-3 mr-1 text-accent" />) + post.locationLabel;
         }
 
-        const captionText = post.caption.length > 70 ? post.caption.substring(0, 70) + '...' : post.caption;
+        const currentCaption = post.caption || '';
+        const captionText = currentCaption.length > 70 ? currentCaption.substring(0, 70) + '...' : currentCaption;
         const descEl = L.DomUtil.create('p', 'text-xs text-muted-foreground mb-1.5', popupElement);
         descEl.innerText = captionText;
 
@@ -339,3 +340,4 @@ export default function InteractiveMap({
     </>
   );
 }
+
