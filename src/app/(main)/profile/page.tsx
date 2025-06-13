@@ -14,6 +14,7 @@ import { Slider } from "@/components/ui/slider"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Progress } from "@/components/ui/progress"
+import { Switch } from "@/components/ui/switch";
 import { useToast } from '@/hooks/use-toast';
 import { updateProfile as updateAuthProfile } from 'firebase/auth';
 import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
