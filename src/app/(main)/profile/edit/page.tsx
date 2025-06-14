@@ -44,12 +44,12 @@ import Image from 'next/image';
 const MAX_IMAGE_SIZE_MB = 5;
 
 const socialPlatforms = [
-  { id: 'instagram', name: 'Instagram', placeholder: 'your_instagram_username' },
+  { id: 'instagram', name: 'Instagram', placeholder: 'your_nepali_travelgram' },
   { id: 'linkedin', name: 'LinkedIn', placeholder: 'your_linkedin_profile_url' },
   { id: 'twitter', name: 'Twitter/X', placeholder: 'your_twitter_handle' },
   { id: 'facebook', name: 'Facebook', placeholder: 'your_facebook_profile_url' },
-  { id: 'tiktok', name: 'TikTok', placeholder: 'your_tiktok_username' },
-  { id: 'website', name: 'Personal Website', placeholder: 'https://yourwebsite.com' },
+  { id: 'tiktok', name: 'TikTok', placeholder: 'your_tiktok_username_nepal' },
+  { id: 'website', name: 'Personal Website', placeholder: 'https://yourwebsite.com.np' },
 ];
 
 const lookingForOptions: { id: LookingFor; label: string }[] = [
@@ -499,10 +499,10 @@ export default function EditProfilePage() {
                     </div>
                   </div>
                   <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="Your Full Name" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="e.g., Sita Sharma" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="username" render={({ field }) => (
-                    <FormItem><FormLabel>Username</FormLabel><FormControl><Input placeholder="your_unique_username" {...field} /></FormControl><FormDescription>Lowercase letters, numbers, and underscores only.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Username</FormLabel><FormControl><Input placeholder="e.g., nepal_explorer_88" {...field} /></FormControl><FormDescription>Lowercase letters, numbers, and underscores only.</FormDescription><FormMessage /></FormItem>
                   )} />
                  <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
                     <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel>
@@ -540,7 +540,7 @@ export default function EditProfilePage() {
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="bio" render={({ field }) => (
-                    <FormItem><FormLabel>Bio / About Me</FormLabel><FormControl><Textarea placeholder="Tell us about yourself, your travel passions, what you're looking for..." {...field} rows={5} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Bio / About Me</FormLabel><FormControl><Textarea placeholder="Namaste! I love trekking in the Himalayas and exploring ancient temples. Looking for travel buddies for my next adventure to Mustang!" {...field} rows={5} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </CardContent>
               </Card>
@@ -550,7 +550,7 @@ export default function EditProfilePage() {
                 <CardContent className="space-y-6">
                   <FormItem><FormLabel>Email Address</FormLabel><Input type="email" value={userProfile.email} disabled className="cursor-not-allowed bg-muted/60" /><FormDescription>Your email is used for login and cannot be changed here.</FormDescription></FormItem>
                   <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-                    <FormItem><FormLabel>Phone Number (Optional)</FormLabel><FormControl><Input type="tel" placeholder="+1 123 456 7890" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Phone Number (Optional)</FormLabel><FormControl><Input type="tel" placeholder="+977 98********" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                    <div>
                     <Label className="text-md font-medium text-foreground/90 mb-2 block">Social Media Links (Optional)</Label>
@@ -591,10 +591,10 @@ export default function EditProfilePage() {
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="favoriteDestinations" render={({ field }) => (
-                    <FormItem><FormLabel>Favorite Destinations</FormLabel><FormControl><Textarea placeholder="e.g., Paris, Tokyo, Bali, Grand Canyon" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Favorite Destinations</FormLabel><FormControl><Textarea placeholder="e.g., Pokhara, Chitwan National Park, Lumbini" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="bucketList" render={({ field }) => (
-                    <FormItem><FormLabel>Bucket List Destinations</FormLabel><FormControl><Textarea placeholder="e.g., Northern Lights, Machu Picchu, Safari in Africa" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Bucket List Destinations</FormLabel><FormControl><Textarea placeholder="e.g., Everest Base Camp Trek, Rara Lake, Upper Mustang" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
                   )} />
                    <Controller control={form.control} name="preferredTransportModes" render={({ field }) => (
                     <FormItem><FormLabel>Preferred Transport Modes</FormLabel>
@@ -618,7 +618,7 @@ export default function EditProfilePage() {
                         <SelectContent>{travelFrequencyOptions.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="travelAvailability" render={({ field }) => (
-                    <FormItem><FormLabel>Typical Travel Availability</FormLabel><FormControl><Input placeholder="e.g., Weekends, Long weekends, Summer holidays" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Typical Travel Availability</FormLabel><FormControl><Input placeholder="e.g., Dashain holidays, Weekends, Tihar break" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                    <FormField control={form.control} name="travelBudgetRange" render={({ field }) => (
                     <FormItem><FormLabel>Typical Travel Budget</FormLabel><Select onValueChange={field.onChange} value={field.value || ''}>
@@ -632,19 +632,19 @@ export default function EditProfilePage() {
                 <CardHeader><CardTitle className="text-2xl font-headline text-primary">🎯 Interests & Hobbies</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                   <FormField control={form.control} name="interests" render={({ field }) => (
-                    <FormItem><FormLabel>General Interests</FormLabel><FormControl><Textarea placeholder="e.g., hiking, photography, museums, cooking, coding" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list of your interests.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>General Interests</FormLabel><FormControl><Textarea placeholder="e.g., trekking, momo making, photography, cultural festivals" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list of your interests.</FormDescription><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="languagesSpoken" render={({ field }) => (
-                    <FormItem><FormLabel>Languages Spoken</FormLabel><FormControl><Textarea placeholder="e.g., English, Spanish (fluent), French (basic)" {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Languages Spoken</FormLabel><FormControl><Textarea placeholder="e.g., Nepali, English, Hindi, Newari (basic)" {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="musicPreferences" render={({ field }) => (
-                    <FormItem><FormLabel>Favorite Music Genres/Artists (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Indie Rock, Taylor Swift, Classical" {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Favorite Music Genres/Artists (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Nepali Folk, Sajjan Raj Vaidya, Rock" {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="moviePreferences" render={({ field }) => (
-                    <FormItem><FormLabel>Favorite Movies/TV Shows (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Sci-Fi, Studio Ghibli, The Office" {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Favorite Movies/TV Shows (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Loot, Kalo Pothi, Nepali sitcoms" {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="bookPreferences" render={({ field }) => (
-                    <FormItem><FormLabel>Favorite Books/Authors (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Fantasy, Brene Brown, " {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Favorite Books/Authors (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Palpasa Cafe, Parijat, Historical Nepali literature" {...field} rows={2} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
                   )} />
                 </CardContent>
               </Card>
@@ -653,21 +653,21 @@ export default function EditProfilePage() {
                 <CardHeader><CardTitle className="text-2xl font-headline text-primary">📍 Location Information</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                   <FormField control={form.control} name="currentLocationAddress" render={({ field }) => (
-                    <FormItem><FormLabel>Current City/General Location</FormLabel><FormControl><Input placeholder="e.g., San Francisco, CA" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Current City/General Location</FormLabel><FormControl><Input placeholder="e.g., Kathmandu, Bagmati" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <div>
                     <Label>Pinpoint on Map (Optional)</Label>
                     <InteractiveMap 
                         onMapClick={handleMapClick} 
                         selectedLocation={currentLocationCoords}
-                        center={userProfile?.currentLocation?.coordinates ? [userProfile.currentLocation.coordinates.latitude, userProfile.currentLocation.coordinates.longitude] : undefined}
-                        zoom={userProfile?.currentLocation?.coordinates ? 10 : 2}
+                        center={userProfile?.currentLocation?.coordinates ? [userProfile.currentLocation.coordinates.latitude, userProfile.currentLocation.coordinates.longitude] : [27.7172, 85.3240]} 
+                        zoom={userProfile?.currentLocation?.coordinates ? 10 : 7} 
                         className="h-[250px] w-full mt-2 rounded-lg shadow-md"
                     />
                     {currentLocationCoords && <p className="text-xs text-muted-foreground mt-1">Selected: Lat: {currentLocationCoords[0].toFixed(4)}, Lng: {currentLocationCoords[1].toFixed(4)}</p>}
                   </div>
                   <FormField control={form.control} name="willingToTravelTo" render={({ field }) => (
-                    <FormItem><FormLabel>Regions/Countries Willing To Travel To</FormLabel><FormControl><Textarea placeholder="e.g., Europe, Southeast Asia, USA National Parks" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Regions/Countries Willing To Travel To</FormLabel><FormControl><Textarea placeholder="e.g., All regions of Nepal, India, Tibet" {...field} rows={3} /></FormControl><FormDescription>Comma-separated list.</FormDescription><FormMessage /></FormItem>
                   )} />
                   <Controller control={form.control} name="maxTravelDistance" render={({ field }) => (
                     <FormItem><FormLabel>Max Travel Distance for Short Trips (km)</FormLabel>
@@ -749,7 +749,7 @@ export default function EditProfilePage() {
                 <CardContent className="space-y-6">
                   <div>
                     <Label htmlFor="idUpload" className="text-md font-medium text-foreground/90">ID Verification (Optional)</Label>
-                    <FormDescription>Upload a government-issued ID for verification. This helps build trust in the community. Your ID will be stored securely and not shared publicly.</FormDescription>
+                    <FormDescription>Upload a government-issued ID (e.g., Nagarikta) for verification. This helps build trust in the community. Your ID will be stored securely and not shared publicly.</FormDescription>
                     <div className="mt-2 flex items-center justify-center w-full">
                        <label htmlFor="idUpload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted transition-colors">
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -773,13 +773,13 @@ export default function EditProfilePage() {
                     {userProfile.isIdVerified && <p className="mt-2 text-sm text-green-600 flex items-center justify-center"><ShieldCheck className="mr-1.5 h-4 w-4"/> Your ID is verified.</p>}
                   </div>
                   <FormField control={form.control} name="emergencyContact_name" render={({ field }) => (
-                    <FormItem><FormLabel>Emergency Contact Name (Optional)</FormLabel><FormControl><Input placeholder="Full Name" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Emergency Contact Name (Optional)</FormLabel><FormControl><Input placeholder="e.g., Ram Bahadur Thapa" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="emergencyContact_phone" render={({ field }) => (
-                    <FormItem><FormLabel>Emergency Contact Phone (Optional)</FormLabel><FormControl><Input type="tel" placeholder="+1 123 456 7890" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Emergency Contact Phone (Optional)</FormLabel><FormControl><Input type="tel" placeholder="+977 98********" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="emergencyContact_relationship" render={({ field }) => (
-                    <FormItem><FormLabel>Emergency Contact Relationship (Optional)</FormLabel><FormControl><Input placeholder="e.g., Parent, Sibling, Friend" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Emergency Contact Relationship (Optional)</FormLabel><FormControl><Input placeholder="e.g., Daju, Bhai, Sathi" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </CardContent>
               </Card>
