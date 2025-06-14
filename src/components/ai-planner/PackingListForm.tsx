@@ -14,15 +14,15 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-// import { Textarea } from '@/components/ui/textarea'; // Textarea not used in this form currently
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
-import { type GeneratePackingListInput, type GeneratePackingListOutput, generatePackingList } from '@/ai/flows'; // Import flow and types
-import { GeneratePackingListInputSchema } from '@/ai/schemas'; // Import schema from centralized location
+import { type GeneratePackingListInput, type GeneratePackingListOutput, generatePackingList } from '@/ai/flows'; 
+import { GeneratePackingListInputSchema } from '@/ai/schemas'; 
 import PackingListDisplay from './PackingListDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DestinationCombobox } from './DestinationCombobox';
 
 export default function PackingListForm() {
   const { toast } = useToast();
@@ -30,7 +30,7 @@ export default function PackingListForm() {
   const [packingList, setPackingList] = useState<GeneratePackingListOutput | null>(null);
 
   const form = useForm<GeneratePackingListInput>({
-    resolver: zodResolver(GeneratePackingListInputSchema), // Use imported schema
+    resolver: zodResolver(GeneratePackingListInputSchema), 
     defaultValues: {
       destination: '',
       tripType: '',
@@ -79,10 +79,14 @@ export default function PackingListForm() {
               control={form.control}
               name="destination"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Destination</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Pokhara, Nepal or Bali, Indonesia" {...field} />
+                    <DestinationCombobox
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select a destination"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

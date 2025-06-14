@@ -26,13 +26,14 @@ import { type PlanTripInput, type PlanTripOutput, planTrip } from '@/ai/flows';
 import { PlanTripInputSchema } from '@/ai/schemas';
 import ItineraryDisplay from './ItineraryDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DestinationCombobox } from './DestinationCombobox';
 
 export default function TripPlannerForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [tripPlan, setTripPlan] = useState<PlanTripOutput | null>(null);
 
-  const form = useForm<PlanTripInput>({ // PlanTripInput now expects Dates
+  const form = useForm<PlanTripInput>({ 
     resolver: zodResolver(PlanTripInputSchema),
     defaultValues: {
       destination: '',
@@ -49,7 +50,6 @@ export default function TripPlannerForm() {
     setIsLoading(true);
     setTripPlan(null);
     try {
-      // Values already match PlanTripInput which expects Date | null | undefined for dates
       const apiInput: PlanTripInput = {
         ...values,
         numberOfDays: values.numberOfDays ? Number(values.numberOfDays) : undefined,
@@ -87,10 +87,14 @@ export default function TripPlannerForm() {
               control={form.control}
               name="destination"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Destination</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Pokhara, Nepal or Paris, France" {...field} />
+                    <DestinationCombobox
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select a destination"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -184,7 +188,7 @@ export default function TripPlannerForm() {
                       type="number" 
                       placeholder="e.g., 5" 
                       {...field} 
-                      value={field.value ?? ''} // Handle null/undefined for controlled input
+                      value={field.value ?? ''} 
                       onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} 
                       min="1"
                     />
@@ -235,7 +239,7 @@ export default function TripPlannerForm() {
                       type="number" 
                       placeholder="e.g., 2" 
                       {...field} 
-                      value={field.value ?? ''} // Handle null/undefined
+                      value={field.value ?? ''} 
                       onChange={e => field.onChange(e.target.value === '' ? 1 : parseInt(e.target.value, 10) || 1)} 
                       min="1" 
                     />

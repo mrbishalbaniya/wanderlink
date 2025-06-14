@@ -20,6 +20,7 @@ import { type GetWeatherSuggestionsInput, type GetWeatherSuggestionsOutput, getW
 import { GetWeatherSuggestionsInputSchema } from '@/ai/schemas';
 import WeatherSuggestionsDisplay from './WeatherSuggestionsDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DestinationCombobox } from './DestinationCombobox';
 
 export default function WeatherSuggestionsForm() {
   const { toast } = useToast();
@@ -69,10 +70,14 @@ export default function WeatherSuggestionsForm() {
               control={form.control}
               name="destination"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Destination</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Pokhara, Nepal" {...field} />
+                    <DestinationCombobox
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select or type destination"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
