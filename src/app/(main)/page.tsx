@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import type { Post, UserProfile } from '@/types';
 import { collection, onSnapshot, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Compass } from 'lucide-react';
+import { Loader2, Compass, PlusCircle } from 'lucide-react'; // Added PlusCircle
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -178,9 +178,17 @@ export default function HomePage() {
   
   return (
     <div className="flex flex-col h-full">
-      <div className="pb-4 sticky top-0 z-10 bg-background/80 dark:bg-background/70 backdrop-blur-md pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4 shadow-sm">
-        <h1 className="text-2xl font-headline text-primary text-center md:text-left">Explore Adventures</h1>
-        <p className="text-sm text-muted-foreground text-center md:text-left">Discover new destinations and experiences shared by the community.</p>
+      <div className="flex justify-between items-center pb-4 sticky top-0 z-10 bg-background/80 dark:bg-background/70 backdrop-blur-md pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-headline text-primary text-center md:text-left">Explore Adventures</h1>
+          <p className="text-sm text-muted-foreground text-center md:text-left">Discover new destinations and experiences shared by the community.</p>
+        </div>
+        <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Link href="/create">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create Post
+          </Link>
+        </Button>
       </div>
 
       <ScrollArea className="flex-1">
@@ -196,15 +204,12 @@ export default function HomePage() {
         ) : (
           <div className="max-w-xl mx-auto space-y-8 pb-8"> {/* Single column, centered, with spacing */}
             {posts.map(post => (
-              // Removed onClick here, PostCard itself might handle main content click for sheet if needed
-              // or rely on specific elements within PostCard for actions.
-              // If main content click for sheet is desired on the whole card, add it to PostCard's root.
               <PostCard 
                 key={post.id} 
                 post={post} 
                 onLikeUpdate={handleLikeUpdateInHome} 
                 onSaveUpdate={handleSaveUpdateInHome} 
-                onPostClickForSheet={handlePostCardClickForSheet} // Pass handler for sheet
+                onPostClickForSheet={handlePostCardClickForSheet}
               />
             ))}
           </div>
@@ -223,7 +228,6 @@ export default function HomePage() {
                 <SheetDescription className="sr-only">Detailed view of: {(selectedPost.caption || "").substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
-                 {/* Re-render the selected post with its own handlers for sheet display if different from feed */}
                 <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome}/>
               </div>
             </ScrollArea>
@@ -233,3 +237,4 @@ export default function HomePage() {
     </div>
   );
 }
+
