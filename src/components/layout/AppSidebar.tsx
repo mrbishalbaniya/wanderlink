@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Compass, MessageSquare, Users, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe, CalendarClock, User as UserIcon } from 'lucide-react'; // Added UserIcon
+import { Compass, MessageSquare, Users, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe, CalendarClock, User as UserIcon, BrainCircuit } from 'lucide-react'; // Added UserIcon & BrainCircuit
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,10 +33,10 @@ const navItems = [
   { href: '/', label: 'Explore Trips', icon: Compass }, 
   { href: '/upcoming', label: 'Upcoming Trips', icon: CalendarClock },
   { href: '/map', label: 'Global Map', icon: Globe },
+  { href: '/ai-planner', label: 'AI Planner', icon: BrainCircuit }, // New AI Planner Link
   { href: '/match', label: 'Match', icon: HeartHandshake },
   { href: '/chat', label: 'Messages', icon: MessageSquare },
   { href: '/friends', label: 'Friends', icon: Users }, 
-  // Profile link removed from here
 ];
 
 export default function AppSidebar() {
@@ -110,10 +110,10 @@ export default function AppSidebar() {
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => { router.push('/profile'); setOpenMobile(false); }}>
-                  <UserIcon className="mr-2 h-4 w-4" /> {/* Changed icon to UserIcon */}
+                  <UserIcon className="mr-2 h-4 w-4" /> 
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <ThemeToggleButton /> {/* Added ThemeToggleButton here */}
+                <ThemeToggleButton /> 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
