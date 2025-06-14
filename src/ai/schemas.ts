@@ -54,3 +54,31 @@ export const GeneratePackingListOutputSchema = z.object({
   categories: z.array(PackingListCategorySchema).describe("An array of packing list categories, each containing items."),
   additionalTips: z.string().describe("Any additional brief tips related to packing for this specific trip (e.g., 'Roll clothes to save space', 'Carry a photocopy of your passport').").optional(),
 });
+
+// Schemas for GetLocalInsightsFlow
+export const GetLocalInsightsInputSchema = z.object({
+  destination: z.string().min(1, { message: "Destination cannot be empty."}).describe('The city or country for which to get local insights (e.g., "Kathmandu, Nepal", "Thailand").'),
+});
+
+export const GetLocalInsightsOutputSchema = z.object({
+  destinationName: z.string().describe("The name of the destination for which insights are provided."),
+  localCustoms: z.string().describe("Tips related to local customs, etiquette, and cultural sensitivities."),
+  safetyInfo: z.string().describe("Important safety information, common scams to be aware of, and emergency contacts if applicable."),
+  whatToAvoid: z.string().describe("Things to avoid doing or saying, or places to be cautious about."),
+  mustTryFood: z.string().describe("A list of must-try local dishes or food experiences."),
+});
+
+// Schemas for GetWeatherSuggestionsFlow
+export const GetWeatherSuggestionsInputSchema = z.object({
+  destination: z.string().min(1, { message: "Destination cannot be empty."}).describe('The destination for weather-based suggestions (e.g., "Pokhara, Nepal").'),
+  date: z.string().min(1, { message: "Date cannot be empty."}).describe('The date or date range for the trip (e.g., "next Tuesday", "2024-12-25 to 2024-12-28", "mid-July").'),
+});
+
+export const GetWeatherSuggestionsOutputSchema = z.object({
+  destinationName: z.string().describe("The name of the destination."),
+  dateContext: z.string().describe("The date or date range for which suggestions are provided."),
+  weatherOverview: z.string().describe("A brief overview of the expected weather conditions based on typical patterns for the location and date. This is a general expectation, not a live forecast."),
+  suitableActivities: z.string().describe("Suggestions for activities suitable for the typical weather during that time."),
+  packingChanges: z.string().describe("Recommendations for specific clothing or gear to pack based on the typical weather."),
+  backupPlansForRain: z.string().describe("Alternative activities or suggestions in case of unexpected rain or adverse weather."),
+});

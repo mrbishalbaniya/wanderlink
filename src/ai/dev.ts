@@ -3,3 +3,5 @@
 import './flows/planTripFlow';
 import './flows/generatePackingListFlow';
 import './flows/detectDuplicateImageFlow'; // Assuming this is still used or for example
+import './flows/getLocalInsightsFlow';
+import './flows/getWeatherSuggestionsFlow';
