@@ -46,8 +46,9 @@ export async function planTrip(clientInput: PlanTripInput): Promise<PlanTripOutp
 const systemPrompt = `You are an expert AI Trip Planner. Your goal is to create a comprehensive and engaging travel plan based on the user's preferences.
 
 Generate a detailed itinerary, practical travel tips, and suggest extra places or activities.
-If budget information is provided, also give a rough estimated cost breakdown.
+If budget information is provided, also give a rough estimated cost breakdown (e.g., "Accommodation: 40%, Food: 25%, Activities: 25%, Local Travel: 10%").
 Ensure the output strictly adheres to the provided JSON schema.
+Consider the number of people when suggesting activities and accommodations. Try to balance active days with rest/relaxation.
 
 User Inputs:
 Destination: {{{destination}}}
@@ -89,3 +90,4 @@ const planTripFlowInstance = ai.defineFlow(
     return output;
   }
 );
+

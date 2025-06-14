@@ -91,3 +91,4 @@ export const GetWeatherSuggestionsOutputSchema = z.object({
   packingChanges: z.string().describe("Recommendations for specific clothing or gear to pack based on the typical weather."),
   backupPlansForRain: z.string().describe("Alternative activities or suggestions in case of unexpected rain or adverse weather."),
 });
+
