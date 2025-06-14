@@ -2,10 +2,10 @@
 'use client';
 
 import Image from 'next/image';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card'; // CardContent, CardDescription, CardFooter removed
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, Bookmark, MapPin, Pin } from 'lucide-react'; 
+import { Heart, MessageCircle, Share2, Bookmark, Pin, MoreHorizontal } from 'lucide-react'; 
 import type { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -14,20 +14,23 @@ import { arrayRemove, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
+import Link from 'next/link'; // For username link
 
 interface PostCardProps {
   post: Post;
   onLikeUpdate?: (postId: string, newLikes: string[]) => void;
   onSaveUpdate?: (postId: string, newSavedBy: string[]) => void;
+  onPostClickForSheet?: (post: Post) => void; // Optional handler to open sheet
 }
 
-export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardProps) {
+export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClickForSheet }: PostCardProps) {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
+  const [showFullCaption, setShowFullCaption] = useState(false);
 
   useEffect(() => {
     setIsLiked(currentUser && post.likes ? post.likes.includes(currentUser.uid) : false);
@@ -35,8 +38,8 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
     setIsSaved(currentUser && post.savedBy ? post.savedBy.includes(currentUser.uid) : false);
   }, [post.likes, post.savedBy, currentUser]);
 
-
-  const handleLike = async () => {
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click if like button is inside clickable area
     if (!currentUser) {
       toast({ title: "Authentication Required", description: "Please login to like posts.", variant: "destructive" });
       return;
@@ -63,12 +66,13 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
     } catch (error) {
       console.error("Error updating like:", error);
       toast({ title: "Error", description: "Could not update like status.", variant: "destructive" });
-      setIsLiked(!newLikedStatus); // Revert optimistic update
-      setLikeCount(prevCount => newLikedStatus ? prevCount -1 : prevCount + 1); // Revert optimistic update
+      setIsLiked(!newLikedStatus); 
+      setLikeCount(prevCount => newLikedStatus ? prevCount -1 : prevCount + 1);
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!currentUser) {
       toast({ title: "Authentication Required", description: "Please login to save posts.", variant: "destructive" });
       return;
@@ -83,7 +87,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
         : arrayRemove(currentUser.uid);
     
     try {
-        await updateDoc(postRef, { savedBy: updatedSavedByArray });
+        await updateDoc(postRef, { savedBy: updatedSavedByArray, lastUpdated: new Date() }); // Add lastUpdated
         if (onSaveUpdate) {
             const currentSavedBy = post.savedBy || [];
             const finalSavedBy = newSavedStatus
@@ -94,55 +98,82 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
     } catch (error) {
         console.error("Error updating save status:", error);
         toast({ title: "Error", description: "Could not update save status.", variant: "destructive" });
-        setIsSaved(!newSavedStatus); // Revert optimistic update
+        setIsSaved(!newSavedStatus); 
     }
+  };
+  
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onPostClickForSheet) {
+      onPostClickForSheet(post); // Open sheet to view details/comments
+    } else {
+      toast({ title: "Feature Coming Soon", description: "Detailed view for comments is under development."});
+    }
+  };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Basic share functionality (copy link)
+    navigator.clipboard.writeText(`${window.location.origin}/?postId=${post.id}`)
+      .then(() => {
+        toast({ title: "Link Copied!", description: "Post link copied to clipboard." });
+      })
+      .catch(err => {
+        toast({ title: "Error", description: "Could not copy link.", variant: "destructive"});
+      });
   };
 
 
   const postDate = post.createdAtDate || (post.createdAt instanceof Date ? post.createdAt : post.createdAt?.toDate());
   const timeAgo = postDate ? formatDistanceToNow(postDate, { addSuffix: true }) : 'Unknown date';
   const userName = post.user?.name || 'Anonymous';
+  const userUsername = post.user?.username || userName.toLowerCase().replace(/\s+/g, '_');
   const userAvatar = post.user?.avatar || `https://placehold.co/40x40.png?text=${userName.charAt(0)}`;
-  const userGeneralLocation = post.user?.currentLocation?.address || null;
   const commentCount = post.commentCount ?? 0;
 
+  const captionNeedsTruncation = post.caption.length > 100;
+
+  const handleCardClick = () => {
+    if (onPostClickForSheet) {
+      onPostClickForSheet(post);
+    }
+  };
+
   return (
-    <Card className="w-full overflow-hidden glassmorphic-card">
-      <CardHeader className="flex flex-row items-start space-x-3 p-4 md:p-6">
-        <Avatar className="h-11 w-11 flex-shrink-0">
-          <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait" />
-          <AvatarFallback className="text-lg bg-muted text-muted-foreground">{userName.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-semibold text-foreground truncate hover:underline cursor-pointer">{userName}</span>
-            <span className="text-xs text-muted-foreground">&bull;</span>
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+    <Card className="w-full overflow-hidden glassmorphic-card shadow-lg rounded-xl">
+      <CardHeader className="flex flex-row items-center justify-between space-x-3 p-3 md:p-4">
+        <div className="flex items-center space-x-3">
+          <Avatar className="h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
+            <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait" />
+            <AvatarFallback className="text-base md:text-lg bg-muted text-muted-foreground">{userName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            {/* TODO: Link to user profile page if available */}
+            <span className="text-sm font-semibold text-foreground truncate hover:underline cursor-pointer">{userUsername}</span>
+            {post.locationLabel && (
+              <p className="text-xs text-muted-foreground flex items-center mt-0.5 truncate" title={post.locationLabel}>
+                <Pin size={11} className="mr-1 flex-shrink-0 text-accent" /> {post.locationLabel}
+              </p>
+            )}
           </div>
-          {post.locationLabel && (
-            <p className="text-xs text-muted-foreground flex items-center mt-0.5 truncate" title={post.locationLabel}>
-              <Pin size={12} className="mr-1 flex-shrink-0 text-accent" /> {post.locationLabel}
-            </p>
-          )}
-           {userGeneralLocation && !post.locationLabel && (
-             <p className="text-xs text-muted-foreground flex items-center mt-0.5 truncate" title={userGeneralLocation}>
-                <MapPin size={12} className="mr-1 flex-shrink-0" /> {userGeneralLocation}
-             </p>
-           )}
         </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <MoreHorizontal size={20}/>
+            <span className="sr-only">More options</span>
+        </Button>
       </CardHeader>
       
       {post.images && post.images.length > 0 && (
-         <Carousel className="w-full">
+         <Carousel className="w-full" opts={{ loop: post.images.length > 1 }}>
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
-              <CarouselItem key={index}>
-                <div className="relative aspect-[4/3] w-full"> 
+              <CarouselItem key={index} onClick={handleCardClick} className="cursor-pointer">
+                <div className="relative aspect-square w-full"> {/* Instagram often uses square or near-square */}
                   <Image 
                     src={imgUrl} 
                     alt={`${post.title} image ${index + 1}`} 
                     fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    sizes="(max-width: 640px) 100vw, 640px" // Adjusted for single column feed
                     className="object-cover"
                     data-ai-hint="travel landscape"
                     priority={index === 0}
@@ -153,47 +184,69 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
           </CarouselContent>
           {post.images.length > 1 && (
             <>
-              <CarouselPrevious className="absolute left-3 top-1/2 -translate-y-1/2 z-10 bg-background/50 hover:bg-background/80 text-foreground" />
-              <CarouselNext className="absolute right-3 top-1/2 -translate-y-1/2 z-10 bg-background/50 hover:bg-background/80 text-foreground" />
+              <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white h-7 w-7 md:h-8 md:w-8" />
+              <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white h-7 w-7 md:h-8 md:w-8" />
             </>
           )}
         </Carousel>
       )}
 
-      <CardContent className="p-4 md:p-6 space-y-2">
-        <CardTitle className="text-lg font-headline font-semibold">{post.title}</CardTitle>
-        <p className="text-sm text-foreground/90 dark:text-foreground/80 leading-relaxed line-clamp-3 hover:line-clamp-none transition-all duration-200 pr-1 max-h-20 hover:max-h-none overflow-y-auto">
-          {post.caption}
-        </p>
-        <p className="text-xs text-muted-foreground">
-            Category: {post.category.charAt(0).toUpperCase() + post.category.slice(1)}
-        </p>
-      </CardContent>
-
-      <CardFooter className="flex justify-between items-center p-4 md:p-6 border-t">
-        <div className="flex space-x-2 md:space-x-3">
-          <Button variant="ghost" size="sm" onClick={handleLike} className="flex items-center space-x-1.5 text-muted-foreground hover:text-primary">
-            <Heart className={`h-5 w-5 ${isLiked ? 'fill-destructive text-destructive' : 'text-foreground/70'}`} />
-            <span className="font-medium">{likeCount}</span>
-            <span className="hidden sm:inline">{likeCount === 1 ? 'Like' : 'Likes'}</span>
-          </Button>
-          <Button variant="ghost" size="sm" className="flex items-center space-x-1.5 text-muted-foreground hover:text-primary">
-            <MessageCircle className="h-5 w-5 text-foreground/70" />
-            <span className="font-medium">{commentCount}</span>
-            <span className="hidden sm:inline">{commentCount === 1 ? 'Comment' : 'Comments'}</span> 
-          </Button>
-        </div>
-        <div className="flex space-x-1 md:space-x-2">
-          <Button variant="ghost" size="icon" onClick={handleSave} className="text-muted-foreground hover:text-primary">
-            <Bookmark className={`h-5 w-5 ${isSaved ? 'fill-accent text-accent' : 'text-foreground/70'}`} /> 
+      <div className="p-3 md:p-4 space-y-2">
+        <div className="flex justify-between items-center">
+          <div className="flex space-x-2 md:space-x-3">
+            <Button variant="ghost" size="icon" onClick={handleLike} className="text-foreground/80 hover:text-foreground">
+              <Heart className={`h-6 w-6 md:h-7 md:w-7 ${isLiked ? 'fill-destructive text-destructive' : ''}`} />
+              <span className="sr-only">Like</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleCommentClick} className="text-foreground/80 hover:text-foreground">
+              <MessageCircle className="h-6 w-6 md:h-7 md:w-7" />
+              <span className="sr-only">Comment</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleShareClick} className="text-foreground/80 hover:text-foreground">
+              <Share2 className="h-6 w-6 md:h-7 md:w-7" />
+              <span className="sr-only">Share</span>
+            </Button>
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleSave} className="text-foreground/80 hover:text-foreground">
+            <Bookmark className={`h-6 w-6 md:h-7 md:w-7 ${isSaved ? 'fill-foreground text-foreground' : ''}`} /> 
             <span className="sr-only">Save</span>
           </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-            <Share2 className="h-5 w-5 text-foreground/70" />
-             <span className="sr-only">Share</span>
-          </Button>
         </div>
-      </CardFooter>
+
+        {likeCount > 0 && (
+          <p className="font-semibold text-sm text-foreground">{likeCount} {likeCount === 1 ? 'like' : 'likes'}</p>
+        )}
+        
+        {/* Post Title - kept for context, Instagram usually omits */}
+        <CardTitle className="text-base font-semibold text-foreground">{post.title}</CardTitle>
+        
+        <div className="text-sm text-foreground/90">
+          <Link href={`/user/${userUsername}`} passHref> {/* Placeholder link */}
+            <span className="font-semibold cursor-pointer hover:underline">{userUsername}</span>
+          </Link>
+          <span className={`ml-1 ${showFullCaption ? '' : 'line-clamp-2'}`}>
+            {post.caption}
+          </span>
+          {captionNeedsTruncation && !showFullCaption && (
+            <button onClick={(e) => { e.stopPropagation(); setShowFullCaption(true); }} className="text-muted-foreground hover:text-foreground text-xs ml-1">
+              more
+            </button>
+          )}
+        </div>
+
+        {commentCount > 0 && (
+          <p onClick={handleCommentClick} className="text-sm text-muted-foreground cursor-pointer hover:underline">
+            View all {commentCount} comments
+          </p>
+        )}
+         {commentCount === 0 && (
+             <p onClick={handleCommentClick} className="text-sm text-muted-foreground cursor-pointer hover:underline">
+                Add a comment...
+             </p>
+         )}
+
+        <p className="text-xs text-muted-foreground pt-1">{timeAgo}</p>
+      </div>
     </Card>
   );
 }
