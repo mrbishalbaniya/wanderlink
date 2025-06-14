@@ -85,22 +85,22 @@ export default function HomePage() {
     return () => unsubscribe(); 
   }, []);
 
+  const postIdFromQuery = searchParams.get('postId');
+
   useEffect(() => {
     if (!loading && posts.length > 0) {
-      const postIdFromQuery = searchParams.get('postId');
       if (postIdFromQuery) {
         const postToSelect = posts.find(p => p.id === postIdFromQuery);
         if (postToSelect) {
           setSelectedPost(postToSelect);
         } else {
-           // If post not found, clear the query param to avoid confusion
-           if (searchParams.get('postId')) {
-             router.replace(pathname, { scroll: false });
-           }
+           // If post not found after a query was present, it implies a bad link or stale data.
+           // Clearing the param makes sense.
+           router.replace(pathname, { scroll: false });
         }
       }
     }
-  }, [posts, loading, searchParams, router, pathname]);
+  }, [posts, loading, postIdFromQuery, router, pathname]);
 
   const handlePostCardClick = useCallback((post: Post) => {
     setSelectedPost(post);
