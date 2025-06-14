@@ -2,10 +2,10 @@
 'use client';
 
 import Image from 'next/image';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card'; // CardContent, CardDescription, CardFooter removed
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, Bookmark, Pin, MoreHorizontal } from 'lucide-react'; 
+import { Heart, MessageCircle, Share2, Bookmark, Pin, MoreHorizontal, Link2,Twitter, FacebookIcon, MessageCircle as WhatsAppIcon, LinkedinIcon } from 'lucide-react';
 import type { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -14,13 +14,20 @@ import { arrayRemove, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
-import Link from 'next/link'; // For username link
+import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface PostCardProps {
   post: Post;
   onLikeUpdate?: (postId: string, newLikes: string[]) => void;
   onSaveUpdate?: (postId: string, newSavedBy: string[]) => void;
-  onPostClickForSheet?: (post: Post) => void; // Optional handler to open sheet
+  onPostClickForSheet?: (post: Post) => void;
 }
 
 export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClickForSheet }: PostCardProps) {
@@ -39,7 +46,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   }, [post.likes, post.savedBy, currentUser]);
 
   const handleLike = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click if like button is inside clickable area
+    e.stopPropagation();
     if (!currentUser) {
       toast({ title: "Authentication Required", description: "Please login to like posts.", variant: "destructive" });
       return;
@@ -55,7 +62,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
       : arrayRemove(currentUser.uid);
 
     try {
-      await updateDoc(postRef, { likes: updatedLikesArray });
+      await updateDoc(postRef, { likes: updatedLikesArray, lastUpdated: new Date() });
       if (onLikeUpdate) {
         const currentLikes = post.likes || [];
         const finalLikes = newLikedStatus 
@@ -87,7 +94,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
         : arrayRemove(currentUser.uid);
     
     try {
-        await updateDoc(postRef, { savedBy: updatedSavedByArray, lastUpdated: new Date() }); // Add lastUpdated
+        await updateDoc(postRef, { savedBy: updatedSavedByArray, lastUpdated: new Date() });
         if (onSaveUpdate) {
             const currentSavedBy = post.savedBy || [];
             const finalSavedBy = newSavedStatus
@@ -105,22 +112,41 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onPostClickForSheet) {
-      onPostClickForSheet(post); // Open sheet to view details/comments
+      onPostClickForSheet(post);
     } else {
       toast({ title: "Feature Coming Soon", description: "Detailed view for comments is under development."});
     }
   };
 
-  const handleShareClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Basic share functionality (copy link)
-    navigator.clipboard.writeText(`${window.location.origin}/?postId=${post.id}`)
-      .then(() => {
-        toast({ title: "Link Copied!", description: "Post link copied to clipboard." });
-      })
-      .catch(err => {
-        toast({ title: "Error", description: "Could not copy link.", variant: "destructive"});
-      });
+  const handleShare = (platform: 'twitter' | 'facebook' | 'whatsapp' | 'linkedin' | 'copy') => {
+    const postUrl = `${window.location.origin}/?postId=${post.id}`;
+    const postTitle = post.title;
+    const postCaptionSummary = post.caption.substring(0, 100) + (post.caption.length > 100 ? '...' : '');
+
+    let shareUrl = '';
+
+    switch (platform) {
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(postUrl)}&text=${encodeURIComponent(postTitle)}`;
+        break;
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'whatsapp':
+        shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(postTitle + " - " + postUrl)}`;
+        break;
+      case 'linkedin':
+        shareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(postUrl)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postCaptionSummary)}`;
+        break;
+      case 'copy':
+        navigator.clipboard.writeText(postUrl)
+          .then(() => toast({ title: "Link Copied!", description: "Post link copied to clipboard." }))
+          .catch(() => toast({ title: "Error", description: "Could not copy link.", variant: "destructive" }));
+        return; 
+    }
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
 
@@ -148,8 +174,9 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
             <AvatarFallback className="text-base md:text-lg bg-muted text-muted-foreground">{userName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            {/* TODO: Link to user profile page if available */}
-            <span className="text-sm font-semibold text-foreground truncate hover:underline cursor-pointer">{userUsername}</span>
+            <Link href={`/user/${userUsername}`} passHref>
+              <span className="text-sm font-semibold text-foreground truncate hover:underline cursor-pointer">{userUsername}</span>
+            </Link>
             {post.locationLabel && (
               <p className="text-xs text-muted-foreground flex items-center mt-0.5 truncate" title={post.locationLabel}>
                 <Pin size={11} className="mr-1 flex-shrink-0 text-accent" /> {post.locationLabel}
@@ -168,12 +195,12 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
               <CarouselItem key={index} onClick={handleCardClick} className="cursor-pointer">
-                <div className="relative aspect-square w-full"> {/* Instagram often uses square or near-square */}
+                <div className="relative aspect-square w-full">
                   <Image 
                     src={imgUrl} 
                     alt={`${post.title} image ${index + 1}`} 
                     fill
-                    sizes="(max-width: 640px) 100vw, 640px" // Adjusted for single column feed
+                    sizes="(max-width: 640px) 100vw, 640px"
                     className="object-cover"
                     data-ai-hint="travel landscape"
                     priority={index === 0}
@@ -202,10 +229,37 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
               <MessageCircle className="h-6 w-6 md:h-7 md:w-7" />
               <span className="sr-only">Comment</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleShareClick} className="text-foreground/80 hover:text-foreground">
-              <Share2 className="h-6 w-6 md:h-7 md:w-7" />
-              <span className="sr-only">Share</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground">
+                  <Share2 className="h-6 w-6 md:h-7 md:w-7" />
+                  <span className="sr-only">Share</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => handleShare('copy')}>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Copy Link
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleShare('twitter')}>
+                  <Twitter className="mr-2 h-4 w-4" />
+                  Share on X (Twitter)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleShare('facebook')}>
+                  <FacebookIcon className="mr-2 h-4 w-4" />
+                  Share on Facebook
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleShare('whatsapp')}>
+                  <WhatsAppIcon className="mr-2 h-4 w-4" />
+                  Share on WhatsApp
+                </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handleShare('linkedin')}>
+                  <LinkedinIcon className="mr-2 h-4 w-4" />
+                  Share on LinkedIn
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <Button variant="ghost" size="icon" onClick={handleSave} className="text-foreground/80 hover:text-foreground">
             <Bookmark className={`h-6 w-6 md:h-7 md:w-7 ${isSaved ? 'fill-foreground text-foreground' : ''}`} /> 
@@ -217,11 +271,10 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
           <p className="font-semibold text-sm text-foreground">{likeCount} {likeCount === 1 ? 'like' : 'likes'}</p>
         )}
         
-        {/* Post Title - kept for context, Instagram usually omits */}
         <CardTitle className="text-base font-semibold text-foreground">{post.title}</CardTitle>
         
         <div className="text-sm text-foreground/90">
-          <Link href={`/user/${userUsername}`} passHref> {/* Placeholder link */}
+          <Link href={`/user/${userUsername}`} passHref>
             <span className="font-semibold cursor-pointer hover:underline">{userUsername}</span>
           </Link>
           <span className={`ml-1 ${showFullCaption ? '' : 'line-clamp-2'}`}>
@@ -250,3 +303,4 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     </Card>
   );
 }
+
