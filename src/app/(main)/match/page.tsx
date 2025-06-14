@@ -27,7 +27,8 @@ export default function MatchPage() {
   const [searchRadiusKm, setSearchRadiusKm] = useState<number>(100); // Default 100km
 
   const currentIndexRef = useRef(0);
-  const canSwipe = currentIndexRef.current < profiles.length && profiles.length > 0;
+  const canSwipe = currentIndexRef.current < profiles.length && profiles.length > 0 && currentIndexRef.current >= 0;
+
 
   const childRefs = useMemo(
     () =>
@@ -43,10 +44,11 @@ export default function MatchPage() {
       return;
     }
     setIsLoading(true);
+    let newCurrentIndex = 0;
+
     if (isInitialLoadOrRadiusChange) {
-      setLastFetchedUserSnap(null); // Reset pagination for new radius or initial load
-      setProfiles([]); // Clear existing profiles for new radius
-      currentIndexRef.current = 0;
+      setLastFetchedUserSnap(null); 
+      setProfiles([]); 
       setAllProfilesFetched(false);
     }
 
@@ -61,20 +63,24 @@ export default function MatchPage() {
     
     if (newProfiles.length === 0 && !isInitialLoadOrRadiusChange) {
       setAllProfilesFetched(true);
-    } else {
-      setProfiles(prevProfiles => isInitialLoadOrRadiusChange ? newProfiles : [...prevProfiles, ...newProfiles]);
-      // Adjust currentIndexRef based on whether it's an initial load or appending
-      currentIndexRef.current = isInitialLoadOrRadiusChange ? newProfiles.length -1 : (prevProfiles.length + newProfiles.length -1) ;
     }
     
+    setProfiles(prevProfiles => {
+      const updatedProfiles = isInitialLoadOrRadiusChange ? newProfiles : [...prevProfiles, ...newProfiles];
+      newCurrentIndex = updatedProfiles.length > 0 ? updatedProfiles.length -1 : 0;
+      return updatedProfiles;
+    });
+    
+    currentIndexRef.current = newCurrentIndex;
     setLastFetchedUserSnap(newLastFetchedUserSnap);
     setIsLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, allProfilesFetched, lastFetchedUserSnap, searchRadiusKm, currentUserProfile?.currentLocation?.coordinates]);
 
 
   useEffect(() => {
-    fetchProfiles(true); // Initial fetch
+    if (currentUser) {
+      fetchProfiles(true); 
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]); // Only re-run if currentUser changes
 
@@ -83,7 +89,7 @@ export default function MatchPage() {
   };
   
   const handleRadiusChangeCommit = useCallback(() => {
-      fetchProfiles(true); // Treat as initial load for the new radius
+      fetchProfiles(true); 
   }, [fetchProfiles]);
 
   const swiped = async (direction: SwipeAction, swipedProfile: UserProfile, index: number) => {
@@ -104,17 +110,35 @@ export default function MatchPage() {
       console.error("Error processing swipe:", error);
     }
     
+    // Check if we need to fetch more profiles
+    // Fetch if less than 2 cards are left in the current batch AND we haven't fetched all profiles yet
     if (currentIndexRef.current < 2 && profiles.length > 0 && !isLoading && !allProfilesFetched) {
         fetchProfiles(false); // Fetch more, not an initial load
     } else if (profiles.length > 0 && currentIndexRef.current < 0 && !isLoading && !allProfilesFetched) {
-      // If all visible cards swiped & more could exist
+      // If all visible cards swiped & more could exist (currentIndexRef becomes -1)
       fetchProfiles(false);
     }
   };
 
   const swipeButtonAction = async (dir: SwipeAction) => {
     if (canSwipe && currentIndexRef.current >= 0 && childRefs[currentIndexRef.current]) {
-      await childRefs[currentIndexRef.current].current?.swipe(dir);
+      // Check if childRefs[currentIndexRef.current].current exists before calling swipe
+      const tinderCardInstance = childRefs[currentIndexRef.current].current;
+      if (tinderCardInstance && typeof tinderCardInstance.swipe === 'function') {
+        try {
+          await tinderCardInstance.swipe(dir);
+        } catch (error) {
+           // This catch block is for potential errors from the swipe() method itself,
+           // though it's not common for it to throw directly if the ref is valid.
+           console.error("Error triggering swipe on TinderCard:", error);
+        }
+      } else {
+        // This might happen if profiles array was modified and childRefs are out of sync,
+        // or if currentIndexRef is pointing to an index where a card was expected but isn't rendered.
+        console.warn("Attempted to swipe on a non-existent or unready TinderCard ref at index:", currentIndexRef.current);
+        // Potentially try to refetch or reset state if this becomes a persistent issue.
+        // For now, it prevents a crash.
+      }
     }
   };
 
@@ -128,7 +152,6 @@ export default function MatchPage() {
       </div>
     );
   }
-
 
   return (
     <div className="flex flex-col items-center justify-start h-full overflow-y-auto p-4 bg-gradient-to-br from-background via-muted/30 to-background">
@@ -168,7 +191,7 @@ export default function MatchPage() {
             <TinderCard
               ref={childRefs[index]}
               className="absolute"
-              key={profile.uid + '-' + index} // Ensure key is unique if profiles can be re-added
+              key={profile.uid + '-' + index} 
               onSwipe={(dir) => swiped(dir as SwipeAction, profile, index)}
               preventSwipe={['up', 'down']}
             >
@@ -180,8 +203,11 @@ export default function MatchPage() {
             <div className="flex flex-col items-center justify-center h-full text-center p-6 glassmorphic-card rounded-2xl w-full">
               <Frown size={64} className="text-muted-foreground/50 mb-4" />
               <h2 className="text-xl font-semibold text-foreground mb-2">No More Profiles</h2>
-              <p className="text-muted-foreground mb-4 text-sm">
-                No one new around here, or try adjusting your radius. Check back later for new travel buddies!
+              <p className="text-muted-foreground mb-4 text-sm max-w-xs">
+                { hasCurrentUserLocation && searchRadiusKm < 500 ? 
+                  "No one new around here. Try expanding your search radius or check back later!" :
+                  "Looks like you've seen everyone for now, or no new users match your current criteria. Check back later!"
+                }
               </p>
               <Button onClick={() => fetchProfiles(true)} variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4" /> Refresh
@@ -229,4 +255,3 @@ export default function MatchPage() {
     </div>
   );
 }
-
