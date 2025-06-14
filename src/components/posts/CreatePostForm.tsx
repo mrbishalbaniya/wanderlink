@@ -19,30 +19,38 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import InteractiveMap from '@/components/map/InteractiveMap';
 import type { LatLng, LatLngTuple } from 'leaflet';
-import type { PostCategory } from '@/types';
-import { Loader2, UploadCloud, XCircle, Pin } from 'lucide-react'; 
+import type { PostCategory, TripStatus } from '@/types';
+import { Loader2, UploadCloud, XCircle, Pin, Calendar as CalendarIcon, ListChecks } from 'lucide-react'; 
 import Image from 'next/image';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 
 const MAX_IMAGES = 5;
 const MAX_IMAGE_SIZE_MB = 5;
-
-if (typeof window !== 'undefined') {
-  console.log('[CreatePostForm Load] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:', process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
-  console.log('[CreatePostForm Load] NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET:', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
-}
-
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(100),
   caption: z.string().min(10, { message: 'Caption must be at least 10 characters.' }).max(1000), 
   locationLabel: z.string().max(100, { message: 'Location label must be at most 100 characters.'}).optional(), 
   category: z.enum(['hiking', 'city', 'beach', 'food', 'culture', 'nature', 'other']),
+  tripStartDate: z.date().optional().nullable(),
+  tripEndDate: z.date().optional().nullable(),
+  packingList: z.string().max(2000, "Packing list is too long.").optional(),
+}).refine(data => {
+  if (data.tripStartDate && data.tripEndDate && data.tripEndDate < data.tripStartDate) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Trip end date cannot be before start date.",
+  path: ["tripEndDate"],
 });
 
 export default function CreatePostForm() {
@@ -65,6 +73,9 @@ export default function CreatePostForm() {
       caption: '', 
       locationLabel: '', 
       category: 'other',
+      tripStartDate: null,
+      tripEndDate: null,
+      packingList: '',
     },
   });
 
@@ -123,7 +134,6 @@ export default function CreatePostForm() {
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
-    console.log(`[Cloudinary] Uploading ${file.name} to ${CLOUDINARY_CLOUD_NAME} using preset ${CLOUDINARY_UPLOAD_PRESET}`);
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
       {
@@ -133,7 +143,6 @@ export default function CreatePostForm() {
     );
     const data = await response.json();
     if (data.secure_url) {
-      console.log(`[Cloudinary] Uploaded ${file.name} successfully: ${data.secure_url}`);
       return data.secure_url;
     } else {
       console.error("[Cloudinary] Upload failed:", data.error?.message || data);
@@ -154,7 +163,6 @@ export default function CreatePostForm() {
 
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
       toast({ title: 'Configuration Error', description: 'Cloudinary is not configured. Please check environment variables and contact support.', variant: 'destructive' });
-      console.error("Attempted to submit post but Cloudinary env vars are missing. CLOUD_NAME:", CLOUDINARY_CLOUD_NAME, "UPLOAD_PRESET:", CLOUDINARY_UPLOAD_PRESET);
       return;
     }
 
@@ -181,13 +189,20 @@ export default function CreatePostForm() {
         createdAt: serverTimestamp(),
         likes: [],
         savedBy: [],
-        commentCount: 0, // Initialize comment count
+        commentCount: 0,
+        // New trip fields
+        tripStatus: 'upcoming' as TripStatus,
+        tripStartDate: values.tripStartDate ? Timestamp.fromDate(values.tripStartDate) : null,
+        tripEndDate: values.tripEndDate ? Timestamp.fromDate(values.tripEndDate) : null,
+        participants: [currentUser.uid],
+        packingList: values.packingList || null,
+        lastUpdated: serverTimestamp(),
       };
       
       await addDoc(collection(db, 'posts'), postData);
 
       toast({ title: 'Post Created!', description: 'Your travel post has been successfully shared.' });
-      router.push('/');
+      router.push('/'); // Or perhaps to /upcoming
     } catch (error: any) {
       console.error('[CreatePostForm] Error during post creation:', error);
       toast({
@@ -244,7 +259,7 @@ export default function CreatePostForm() {
                   <FormItem>
                     <FormLabel className="text-lg">Caption</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Share details about your amazing experience..." {...field} rows={6} className="text-base"/>
+                      <Textarea placeholder="Share details about your amazing experience..." {...field} rows={4} className="text-base"/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -274,6 +289,61 @@ export default function CreatePostForm() {
                   </FormItem>
                 )}
               />
+               <FormField control={form.control} name="tripStartDate" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="text-lg">Trip Start Date (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!field.value && "text-muted-foreground"}`}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "PPP") : <span>Pick a start date</span>}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="tripEndDate" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="text-lg">Trip End Date (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!field.value && "text-muted-foreground"}`}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "PPP") : <span>Pick an end date</span>}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => form.getValues("tripStartDate") ? date < form.getValues("tripStartDate")! : false} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                 <FormField
+                  control={form.control}
+                  name="packingList"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg flex items-center">
+                        <ListChecks className="h-5 w-5 mr-2 text-muted-foreground" />
+                        Packing List (Optional)
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="e.g., Hiking boots, Sunscreen, Water bottle..." {...field} rows={4} className="text-base"/>
+                      </FormControl>
+                       <FormDescription>One item per line is recommended.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
             </div>
             <div className="space-y-6">
               <div>
@@ -301,7 +371,7 @@ export default function CreatePostForm() {
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
                         <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                        <p className="text-xs text-muted-foreground">SVG, PNG, JPG or GIF (MAX. {MAX_IMAGE_SIZE_MB}MB each)</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG, GIF (MAX. {MAX_IMAGE_SIZE_MB}MB each)</p>
                     </div>
                     <Input id="dropzone-file" type="file" className="hidden" onChange={handleImageChange} multiple accept="image/*" />
                 </label>
@@ -344,3 +414,4 @@ export default function CreatePostForm() {
     </div>
   );
 }
+

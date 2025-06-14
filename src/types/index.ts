@@ -7,6 +7,7 @@ export interface Coordinates {
 }
 
 export type PostCategory = 'hiking' | 'city' | 'beach' | 'food' | 'culture' | 'nature' | 'other';
+export type TripStatus = 'upcoming' | 'in-progress' | 'completed' | 'cancelled' | 'planning'; // Added 'planning'
 
 export interface Post {
   id: string;
@@ -21,8 +22,19 @@ export interface Post {
   createdAt: Timestamp | Date; 
   likes: string[]; 
   savedBy?: string[]; 
-  commentCount?: number; // Added for comment count
+  commentCount?: number;
+
+  // Trip-specific fields
+  tripStatus?: TripStatus;
+  tripStartDate?: Timestamp | Date | null;
+  tripEndDate?: Timestamp | Date | null;
+  participants?: string[]; // Array of user UIDs
+  packingList?: string; // Simple text or markdown
+
+  // Client-side processed dates
   createdAtDate?: Date; 
+  tripStartDateDate?: Date | null;
+  tripEndDateDate?: Date | null;
 }
 
 export type Gender = 'male' | 'female' | 'non-binary' | 'prefer-not-to-say' | '';
@@ -124,3 +136,4 @@ export interface MatchData {
   timestamp: FieldValue;
   chatId?: string; 
 }
+
