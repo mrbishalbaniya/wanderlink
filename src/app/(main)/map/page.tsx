@@ -154,7 +154,7 @@ export default function MapPage() {
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">
                 <SheetTitle className="sr-only">{selectedPostForSheet.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {selectedPostForSheet.caption.substring(0,100)}</SheetDescription>
+                <SheetDescription className="sr-only">Detailed view of: {selectedPostForSheet.caption ? selectedPostForSheet.caption.substring(0,100) : ''}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
                 <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInSheet} onSaveUpdate={handleSaveUpdateInSheet}/>
