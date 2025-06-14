@@ -17,6 +17,7 @@ import {
   startAfter,
   QueryDocumentSnapshot,
   addDoc,
+  Timestamp,
 } from 'firebase/firestore';
 
 const PROFILES_PER_FETCH = 10;
@@ -69,12 +70,11 @@ export async function getUsersToSwipe(
     let usersQuery;
     const usersCollectionRef = collection(db, 'users');
     
-    // Determine fetch limit: fetch more if radius filter is active to get enough results after client-side filtering
     const fetchLimit = (currentUserCoordinates && searchRadiusKm) 
         ? PROFILES_PER_FETCH * PROFILES_FETCH_MULTIPLIER_FOR_RADIUS_FILTER 
         : PROFILES_PER_FETCH;
 
-    if (excludedUserIds.size > 0 && excludedUserIds.size <= 30) { // Firestore 'not-in' limit is 30 in v9+
+    if (excludedUserIds.size > 0 && excludedUserIds.size <= 30) { 
         usersQuery = query(
             usersCollectionRef,
             where('uid', 'not-in', Array.from(excludedUserIds)),
@@ -95,24 +95,43 @@ export async function getUsersToSwipe(
     const usersSnapshot = await getDocs(usersQuery);
     
     let fetchedProfiles: UserProfile[] = usersSnapshot.docs
-      .map(doc => {
-          const data = doc.data();
+      .map(docSnapshot => {
+          const data = docSnapshot.data();
           const profile: UserProfile = { 
-            uid: doc.id, // Use doc.id as uid if 'uid' field isn't explicitly set (though it should be)
+            uid: docSnapshot.id,
             ...data,
-            // Ensure date fields are converted if necessary (though this should ideally happen in AuthContext or when data is set)
-            dateOfBirthDate: data.dateOfBirth?.toDate ? data.dateOfBirth.toDate() : data.dateOfBirth,
-            joinedAtDate: data.joinedAt?.toDate ? data.joinedAt.toDate() : data.joinedAt,
-           } as UserProfile;
+          } as UserProfile; // Cast initially, then refine dates
+
+          // Robust date conversion for profile.dateOfBirth
+          if (data.dateOfBirth) {
+            if (data.dateOfBirth instanceof Timestamp) {
+              profile.dateOfBirthDate = data.dateOfBirth.toDate();
+            } else if (data.dateOfBirth instanceof Date) {
+              profile.dateOfBirthDate = data.dateOfBirth;
+            } else if (typeof data.dateOfBirth === 'object' && (data.dateOfBirth as any).seconds) {
+              profile.dateOfBirthDate = new Timestamp((data.dateOfBirth as any).seconds, (data.dateOfBirth as any).nanoseconds).toDate();
+            }
+          }
+
+          // Robust date conversion for profile.joinedAt
+          if (data.joinedAt) {
+             if (data.joinedAt instanceof Timestamp) {
+              profile.joinedAtDate = data.joinedAt.toDate();
+            } else if (data.joinedAt instanceof Date) {
+              profile.joinedAtDate = data.joinedAt;
+            } else if (typeof data.joinedAt === 'object' && (data.joinedAt as any).seconds) {
+              profile.joinedAtDate = new Timestamp((data.joinedAt as any).seconds, (data.joinedAt as any).nanoseconds).toDate();
+            }
+          }
           return profile;
       })
-      .filter(profile => !excludedUserIds.has(profile.uid)); // Ensure final exclusion
+      .filter(profile => !excludedUserIds.has(profile.uid)); 
 
     let profilesToReturn: UserProfile[] = [];
 
     if (currentUserCoordinates && searchRadiusKm && searchRadiusKm > 0) {
       profilesToReturn = fetchedProfiles.filter(profile => {
-        if (!profile.currentLocation?.coordinates) return false; // Skip profiles without location
+        if (!profile.currentLocation?.coordinates) return false; 
         const distance = getDistanceFromLatLonInKm(
           currentUserCoordinates.latitude,
           currentUserCoordinates.longitude,
@@ -125,13 +144,10 @@ export async function getUsersToSwipe(
       profilesToReturn = fetchedProfiles;
     }
     
-    // Ensure we don't return more than PROFILES_PER_FETCH, even if radius filter fetched more
     if (profilesToReturn.length > PROFILES_PER_FETCH) {
         profilesToReturn = profilesToReturn.slice(0, PROFILES_PER_FETCH);
     }
     
-    // The newLastFetchedUserSnap should be from the original unfiltered fetch,
-    // to ensure pagination continues correctly over the whole dataset.
     const newLastSnap = usersSnapshot.docs.length > 0 ? usersSnapshot.docs[usersSnapshot.docs.length - 1] : null;
 
     return { profiles: profilesToReturn, newLastFetchedUserSnap: newLastSnap };
@@ -183,7 +199,20 @@ export async function checkForAndCreateMatch(swiperId: string, likedUserId: stri
       if (matchDocSnap.exists()) {
         console.log("Match already exists:", matchId);
         const likedUserProfileSnap = await getDoc(doc(db, 'users', likedUserId));
-        return likedUserProfileSnap.exists() ? ({ uid: likedUserId, ...likedUserProfileSnap.data() } as UserProfile) : null;
+        if (likedUserProfileSnap.exists()) {
+            const data = likedUserProfileSnap.data();
+            const profile = { uid: likedUserId, ...data } as UserProfile;
+             if (data.dateOfBirth) {
+                if (data.dateOfBirth instanceof Timestamp) profile.dateOfBirthDate = data.dateOfBirth.toDate();
+                else if (data.dateOfBirth instanceof Date) profile.dateOfBirthDate = data.dateOfBirth;
+             }
+             if (data.joinedAt) {
+                if (data.joinedAt instanceof Timestamp) profile.joinedAtDate = data.joinedAt.toDate();
+                else if (data.joinedAt instanceof Date) profile.joinedAtDate = data.joinedAt;
+             }
+            return profile;
+        }
+        return null;
       }
       
       const batch = writeBatch(db);
@@ -196,12 +225,16 @@ export async function checkForAndCreateMatch(swiperId: string, likedUserId: stri
       const likedUserProfileSnap = await getDoc(doc(db, 'users', likedUserId));
       if (likedUserProfileSnap.exists()) {
         const data = likedUserProfileSnap.data();
-        return { 
-            uid: likedUserId, 
-            ...data,
-            dateOfBirthDate: data.dateOfBirth?.toDate ? data.dateOfBirth.toDate() : data.dateOfBirth,
-            joinedAtDate: data.joinedAt?.toDate ? data.joinedAt.toDate() : data.joinedAt,
-        } as UserProfile;
+        const profile = { uid: likedUserId, ...data } as UserProfile;
+         if (data.dateOfBirth) {
+            if (data.dateOfBirth instanceof Timestamp) profile.dateOfBirthDate = data.dateOfBirth.toDate();
+            else if (data.dateOfBirth instanceof Date) profile.dateOfBirthDate = data.dateOfBirth;
+         }
+         if (data.joinedAt) {
+            if (data.joinedAt instanceof Timestamp) profile.joinedAtDate = data.joinedAt.toDate();
+            else if (data.joinedAt instanceof Date) profile.joinedAtDate = data.joinedAt;
+         }
+        return profile;
       }
     }
     return null;

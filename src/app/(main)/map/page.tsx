@@ -38,28 +38,66 @@ export default function MapPage() {
       const q = query(postsCollection, orderBy('createdAt', 'desc'));
       const postsSnapshot = await getDocs(q);
       
-      const postsData = await Promise.all(postsSnapshot.docs.map(async (docSnapshot) => {
-        const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
-        
-        if (post.createdAt && typeof (post.createdAt as Timestamp).toDate === 'function') {
-          post.createdAtDate = (post.createdAt as Timestamp).toDate();
-        } else if (post.createdAt instanceof Date) {
-           post.createdAtDate = post.createdAt;
-        }
-
-        if (post.userId) {
-          const userRef = doc(db, 'users', post.userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            post.user = userSnap.data() as UserProfile;
-            if (post.user.joinedAt && typeof (post.user.joinedAt as Timestamp).toDate === 'function') {
-              post.user.joinedAtDate = (post.user.joinedAt as Timestamp).toDate();
+      const postsDataPromises = postsSnapshot.docs.map(async (docSnapshot) => {
+        try {
+          const postData = docSnapshot.data();
+          const post: Post = { 
+            id: docSnapshot.id,
+            userId: postData.userId || '',
+            title: postData.title || 'Untitled Post',
+            caption: postData.caption || '',
+            coordinates: postData.coordinates || { latitude: 0, longitude: 0 },
+            category: postData.category || 'other',
+            images: postData.images || [],
+            likes: postData.likes || [],
+            savedBy: postData.savedBy || [],
+            commentCount: postData.commentCount ?? 0,
+            createdAt: postData.createdAt,
+            ...postData 
+          };
+          
+          if (postData.createdAt) {
+            if (postData.createdAt instanceof Timestamp) {
+              post.createdAtDate = postData.createdAt.toDate();
+            } else if (postData.createdAt instanceof Date) {
+              post.createdAtDate = postData.createdAt;
+            } else if (typeof postData.createdAt === 'object' && (postData.createdAt as any).seconds) {
+              post.createdAtDate = new Timestamp((postData.createdAt as any).seconds, (postData.createdAt as any).nanoseconds).toDate();
             }
           }
+
+          if (postData.userId) {
+            const userRef = doc(db, 'users', postData.userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const userData = userSnap.data() as Omit<UserProfile, 'uid'>;
+              post.user = { uid: userSnap.id, ...userData } as UserProfile;
+              
+              if (userData.joinedAt) {
+                if (userData.joinedAt instanceof Timestamp) {
+                  post.user.joinedAtDate = userData.joinedAt.toDate();
+                } else if (userData.joinedAt instanceof Date) {
+                   post.user.joinedAtDate = userData.joinedAt;
+                } else if (typeof userData.joinedAt === 'object' && (userData.joinedAt as any).seconds) {
+                    post.user.joinedAtDate = new Timestamp((userData.joinedAt as any).seconds, (userData.joinedAt as any).nanoseconds).toDate();
+                }
+              }
+            } else {
+              post.user = undefined;
+              console.warn(`User profile not found for userId: ${postData.userId} on post ${post.id}`);
+            }
+          }
+          return post;
+        } catch (postError) {
+          console.error(`Error processing post ${docSnapshot.id} for map:`, postError);
+          return null; // Skip this post if it causes an error
         }
-        return post;
-      }));
-      setPosts(postsData);
+      });
+      
+      const resolvedPostsData = await Promise.all(postsDataPromises);
+      const validPostsData = resolvedPostsData.filter(p => p !== null) as Post[];
+      setPosts(validPostsData);
+
     } catch (error) {
       console.error("Error fetching posts for map:", error);
     } finally {

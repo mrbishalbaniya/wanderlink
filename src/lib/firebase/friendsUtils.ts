@@ -54,17 +54,50 @@ export async function getMatchedUsers(currentUserId: string): Promise<UserProfil
         getDoc(userDocRef).then(userSnap => {
           if (userSnap.exists()) {
             const data = userSnap.data();
-            // Convert Timestamps to Dates
             const profile: UserProfile = {
               uid: userSnap.id,
               ...data,
-              joinedAtDate: data.joinedAt instanceof Timestamp ? data.joinedAt.toDate() : data.joinedAt,
-              dateOfBirthDate: data.dateOfBirth instanceof Timestamp ? data.dateOfBirth.toDate() : data.dateOfBirth,
-              lastUpdatedDate: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate() : data.lastUpdated,
-            } as UserProfile;
+            } as UserProfile; // Cast initially, then refine dates
+
+            // Robust date conversion for joinedAt
+            if (data.joinedAt) {
+              if (data.joinedAt instanceof Timestamp) {
+                profile.joinedAtDate = data.joinedAt.toDate();
+              } else if (data.joinedAt instanceof Date) {
+                profile.joinedAtDate = data.joinedAt;
+              } else if (typeof data.joinedAt === 'object' && (data.joinedAt as any).seconds) {
+                profile.joinedAtDate = new Timestamp((data.joinedAt as any).seconds, (data.joinedAt as any).nanoseconds).toDate();
+              }
+            }
+
+            // Robust date conversion for dateOfBirth
+            if (data.dateOfBirth) {
+              if (data.dateOfBirth instanceof Timestamp) {
+                profile.dateOfBirthDate = data.dateOfBirth.toDate();
+              } else if (data.dateOfBirth instanceof Date) {
+                profile.dateOfBirthDate = data.dateOfBirth;
+              } else if (typeof data.dateOfBirth === 'object' && (data.dateOfBirth as any).seconds) {
+                profile.dateOfBirthDate = new Timestamp((data.dateOfBirth as any).seconds, (data.dateOfBirth as any).nanoseconds).toDate();
+              }
+            }
+            
+            // Robust date conversion for lastUpdated
+            if (data.lastUpdated) {
+              if (data.lastUpdated instanceof Timestamp) {
+                profile.lastUpdatedDate = data.lastUpdated.toDate();
+              } else if (data.lastUpdated instanceof Date) {
+                profile.lastUpdatedDate = data.lastUpdated;
+              } else if (typeof data.lastUpdated === 'object' && (data.lastUpdated as any).seconds) {
+                 profile.lastUpdatedDate = new Timestamp((data.lastUpdated as any).seconds, (data.lastUpdated as any).nanoseconds).toDate();
+              }
+            }
             return profile;
           }
+          console.warn(`Matched user profile not found for userId: ${userId}`);
           return null;
+        }).catch(err => {
+            console.error(`Error fetching profile for matched user ${userId}:`, err);
+            return null;
         })
       );
     });
@@ -74,8 +107,6 @@ export async function getMatchedUsers(currentUserId: string): Promise<UserProfil
 
   } catch (error) {
     console.error("Error fetching matched users:", error);
-    // Depending on error handling strategy, you might want to throw the error
-    // or return an empty array / specific error object.
     return []; 
   }
 }

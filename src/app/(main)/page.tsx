@@ -39,34 +39,71 @@ export default function HomePage() {
         const postsDataPromises = querySnapshot.docs.map(async (docSnapshot) => {
           try {
             const postData = docSnapshot.data();
-            const post = { id: docSnapshot.id, ...postData } as Post;
+            const post: Post = { 
+              id: docSnapshot.id, 
+              // Ensure all required fields from Post type are initialized even if not in postData
+              userId: postData.userId || '',
+              title: postData.title || 'Untitled Post',
+              caption: postData.caption || '',
+              coordinates: postData.coordinates || { latitude: 0, longitude: 0 },
+              category: postData.category || 'other',
+              images: postData.images || [],
+              likes: postData.likes || [],
+              savedBy: postData.savedBy || [],
+              commentCount: postData.commentCount ?? 0,
+              createdAt: postData.createdAt, // Keep as original Firestore type initially
+              ...postData 
+            };
             
-            if (postData.createdAt && typeof (postData.createdAt as Timestamp).toDate === 'function') {
-              post.createdAtDate = (postData.createdAt as Timestamp).toDate();
-            } else if (postData.createdAt instanceof Date) {
-              post.createdAtDate = postData.createdAt;
+            // Robust date conversion for post.createdAt
+            if (postData.createdAt) {
+              if (postData.createdAt instanceof Timestamp) {
+                post.createdAtDate = postData.createdAt.toDate();
+              } else if (postData.createdAt instanceof Date) {
+                post.createdAtDate = postData.createdAt;
+              } else if (typeof postData.createdAt === 'object' && postData.createdAt.seconds) {
+                // Handle case where it might be a plain object from Firestore offline cache or similar
+                post.createdAtDate = new Timestamp(postData.createdAt.seconds, postData.createdAt.nanoseconds).toDate();
+              }
             }
+
 
             if (postData.userId) {
               const userRef = doc(db, 'users', postData.userId);
               const userSnap = await getDoc(userRef);
               if (userSnap.exists()) {
-                const userData = userSnap.data();
-                post.user = userData as UserProfile;
-                if (userData.joinedAt && typeof (userData.joinedAt as Timestamp).toDate === 'function') {
-                  post.user.joinedAtDate = (userData.joinedAt as Timestamp).toDate();
+                const userData = userSnap.data() as Omit<UserProfile, 'uid'>; // UserProfile without uid, as uid is from userRef.id
+                post.user = { uid: userSnap.id, ...userData } as UserProfile;
+
+                // Robust date conversion for user.joinedAt
+                if (userData.joinedAt) {
+                  if (userData.joinedAt instanceof Timestamp) {
+                    post.user.joinedAtDate = userData.joinedAt.toDate();
+                  } else if (userData.joinedAt instanceof Date) {
+                    post.user.joinedAtDate = userData.joinedAt;
+                  } else if (typeof userData.joinedAt === 'object' && (userData.joinedAt as any).seconds) {
+                     post.user.joinedAtDate = new Timestamp((userData.joinedAt as any).seconds, (userData.joinedAt as any).nanoseconds).toDate();
+                  }
                 }
-                if (userData.dateOfBirth && typeof (userData.dateOfBirth as Timestamp).toDate === 'function') {
-                  post.user.dateOfBirthDate = (userData.dateOfBirth as Timestamp).toDate();
+                // Robust date conversion for user.dateOfBirth
+                if (userData.dateOfBirth) {
+                  if (userData.dateOfBirth instanceof Timestamp) {
+                    post.user.dateOfBirthDate = userData.dateOfBirth.toDate();
+                  } else if (userData.dateOfBirth instanceof Date) {
+                    post.user.dateOfBirthDate = userData.dateOfBirth;
+                  } else if (typeof userData.dateOfBirth === 'object' && (userData.dateOfBirth as any).seconds) {
+                    post.user.dateOfBirthDate = new Timestamp((userData.dateOfBirth as any).seconds, (userData.dateOfBirth as any).nanoseconds).toDate();
+                  }
                 }
               } else {
                 post.user = undefined; 
+                console.warn(`User profile not found for userId: ${postData.userId} on post ${post.id}`);
               }
             }
             return post;
           } catch (postError) {
             console.error(`Error processing post ${docSnapshot.id}:`, postError);
-            return null; 
+            return null; // Skip this post if it causes an error
           }
         });
 
@@ -98,7 +135,8 @@ export default function HomePage() {
         }
       }
     }
-  }, [posts, loading, postIdFromQuery, router, pathname, setSelectedPost]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts, loading, postIdFromQuery, router, pathname, setSelectedPost]); // Added setSelectedPost
 
   const handlePostCardClick = useCallback((post: Post) => {
     setSelectedPost(post);
