@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import TinderCard from 'react-tinder-card';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUsersToSwipe, recordSwipe, checkForAndCreateMatch } from '@/lib/firebase/matchUtils';
@@ -9,8 +9,11 @@ import type { UserProfile, SwipeAction } from '@/types';
 import SwipeCard from '@/components/match/SwipeCard';
 import MatchPopup from '@/components/match/MatchPopup';
 import { Button } from '@/components/ui/button';
-import { Loader2, RotateCcw, X, Heart, Users, Frown } from 'lucide-react';
+import { Loader2, RotateCcw, X, Heart, Users, Frown, Globe } from 'lucide-react';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export default function MatchPage() {
   const { currentUser, userProfile: currentUserProfile } = useAuth();
@@ -21,9 +24,11 @@ export default function MatchPage() {
   const [lastSwipedDirection, setLastSwipedDirection] = useState<SwipeAction | null>(null);
   const [lastFetchedUserSnap, setLastFetchedUserSnap] = useState<QueryDocumentSnapshot | null>(null);
   const [allProfilesFetched, setAllProfilesFetched] = useState(false);
+  const [searchRadiusKm, setSearchRadiusKm] = useState<number>(100); // Default 100km
 
   const currentIndexRef = useRef(0);
-  const canSwipe = currentIndexRef.current < profiles.length;
+  const canSwipe = currentIndexRef.current < profiles.length && profiles.length > 0;
+
   const childRefs = useMemo(
     () =>
       Array(profiles.length)
@@ -32,31 +37,54 @@ export default function MatchPage() {
     [profiles.length]
   );
   
-  const fetchProfiles = async (isInitialLoad = false) => {
-    if (!currentUser || allProfilesFetched) {
-      if(!allProfilesFetched) setIsLoading(false);
+  const fetchProfiles = useCallback(async (isInitialLoadOrRadiusChange = false) => {
+    if (!currentUser || (allProfilesFetched && !isInitialLoadOrRadiusChange)) {
+      if (!allProfilesFetched || isInitialLoadOrRadiusChange) setIsLoading(false);
       return;
     }
-    if(!isInitialLoad) setIsLoading(true); // show loader for subsequent fetches
+    setIsLoading(true);
+    if (isInitialLoadOrRadiusChange) {
+      setLastFetchedUserSnap(null); // Reset pagination for new radius or initial load
+      setProfiles([]); // Clear existing profiles for new radius
+      currentIndexRef.current = 0;
+      setAllProfilesFetched(false);
+    }
 
-    const { profiles: newProfiles, newLastFetchedUserSnap } = await getUsersToSwipe(currentUser.uid, isInitialLoad ? null : lastFetchedUserSnap);
+    const currentUserCoordinates = currentUserProfile?.currentLocation?.coordinates;
+
+    const { profiles: newProfiles, newLastFetchedUserSnap } = await getUsersToSwipe(
+      currentUser.uid,
+      isInitialLoadOrRadiusChange ? null : lastFetchedUserSnap,
+      currentUserCoordinates,
+      searchRadiusKm
+    );
     
-    if (newProfiles.length === 0 && !isInitialLoad) {
-        setAllProfilesFetched(true);
+    if (newProfiles.length === 0 && !isInitialLoadOrRadiusChange) {
+      setAllProfilesFetched(true);
     } else {
-        setProfiles(prevProfiles => isInitialLoad ? newProfiles : [...prevProfiles, ...newProfiles]);
-        currentIndexRef.current = isInitialLoad ? newProfiles.length -1 : prevProfiles.length + newProfiles.length -1;
+      setProfiles(prevProfiles => isInitialLoadOrRadiusChange ? newProfiles : [...prevProfiles, ...newProfiles]);
+      // Adjust currentIndexRef based on whether it's an initial load or appending
+      currentIndexRef.current = isInitialLoadOrRadiusChange ? newProfiles.length -1 : (prevProfiles.length + newProfiles.length -1) ;
     }
     
     setLastFetchedUserSnap(newLastFetchedUserSnap);
     setIsLoading(false);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, allProfilesFetched, lastFetchedUserSnap, searchRadiusKm, currentUserProfile?.currentLocation?.coordinates]);
 
 
   useEffect(() => {
-    fetchProfiles(true);
+    fetchProfiles(true); // Initial fetch
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+  }, [currentUser]); // Only re-run if currentUser changes
+
+  const handleRadiusChange = (newRadius: number[]) => {
+    setSearchRadiusKm(newRadius[0]);
+  };
+  
+  const handleRadiusChangeCommit = () => {
+      fetchProfiles(true); // Treat as initial load for the new radius
+  };
 
   const swiped = async (direction: SwipeAction, swipedProfile: UserProfile, index: number) => {
     if (!currentUser) return;
@@ -74,13 +102,13 @@ export default function MatchPage() {
       }
     } catch (error) {
       console.error("Error processing swipe:", error);
-      // Potentially show a toast message
     }
     
-    // Check if we need to fetch more profiles
-    if (currentIndexRef.current < 2 && !isLoading && !allProfilesFetched) {
-        // Fetch more profiles when few are left
-        fetchProfiles();
+    if (currentIndexRef.current < 2 && profiles.length > 0 && !isLoading && !allProfilesFetched) {
+        fetchProfiles(false); // Fetch more, not an initial load
+    } else if (profiles.length > 0 && currentIndexRef.current < 0 && !isLoading && !allProfilesFetched) {
+      // If all visible cards swiped & more could exist
+      fetchProfiles(false);
     }
   };
 
@@ -89,6 +117,8 @@ export default function MatchPage() {
       await childRefs[currentIndexRef.current].current?.swipe(dir);
     }
   };
+
+  const hasCurrentUserLocation = !!currentUserProfile?.currentLocation?.coordinates;
 
   if (isLoading && profiles.length === 0) {
     return (
@@ -101,11 +131,36 @@ export default function MatchPage() {
 
 
   return (
-    <div className="flex flex-col items-center justify-center h-full overflow-hidden relative p-4 bg-gradient-to-br from-background via-muted/30 to-background">
-      <div className="pb-4 sticky top-0 z-10 bg-transparent pt-0 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 mb-4">
-        <h1 className="text-3xl font-headline text-primary text-center">Find Your Travel Match</h1>
-        <p className="text-sm text-muted-foreground text-center">Swipe right to connect, left to pass.</p>
+    <div className="flex flex-col items-center justify-start h-full overflow-y-auto p-4 bg-gradient-to-br from-background via-muted/30 to-background">
+      <div className="text-center mb-6 sticky top-0 z-20 bg-transparent py-4 w-full max-w-md">
+        <h1 className="text-3xl font-headline text-primary">Find Your Travel Match</h1>
+        <p className="text-sm text-muted-foreground">Swipe right to connect, left to pass.</p>
       </div>
+      
+      <Card className="w-full max-w-md mb-6 glassmorphic-card shadow-soft-lg">
+        <CardHeader className="pb-2">
+            <Label htmlFor="radius-slider" className="text-sm font-medium text-foreground flex items-center">
+              <Globe className="h-4 w-4 mr-2 text-primary" />
+              Search Radius: <span className="font-bold text-primary ml-1">{searchRadiusKm} km</span>
+            </Label>
+        </CardHeader>
+        <CardContent>
+          <Slider
+            id="radius-slider"
+            min={10}
+            max={500}
+            step={10}
+            value={[searchRadiusKm]}
+            onValueChange={handleRadiusChange}
+            onValueChangeCommit={handleRadiusChangeCommit}
+            disabled={!hasCurrentUserLocation || isLoading}
+            className="my-2"
+          />
+          {!hasCurrentUserLocation && (
+            <p className="text-xs text-muted-foreground mt-1">Set your location in your profile to use the radius filter.</p>
+          )}
+        </CardContent>
+      </Card>
       
       <div className="relative w-[300px] h-[450px] md:w-[350px] md:h-[520px]">
         {profiles.length > 0 ? (
@@ -113,7 +168,7 @@ export default function MatchPage() {
             <TinderCard
               ref={childRefs[index]}
               className="absolute"
-              key={profile.uid}
+              key={profile.uid + '-' + index} // Ensure key is unique if profiles can be re-added
               onSwipe={(dir) => swiped(dir as SwipeAction, profile, index)}
               preventSwipe={['up', 'down']}
             >
@@ -125,13 +180,20 @@ export default function MatchPage() {
             <div className="flex flex-col items-center justify-center h-full text-center p-6 glassmorphic-card rounded-2xl w-full">
               <Frown size={64} className="text-muted-foreground/50 mb-4" />
               <h2 className="text-xl font-semibold text-foreground mb-2">No More Profiles</h2>
-              <p className="text-muted-foreground mb-4">You've seen everyone for now. Check back later for new travel buddies!</p>
-              <Button onClick={() => { setAllProfilesFetched(false); fetchProfiles(true); }} variant="outline">
+              <p className="text-muted-foreground mb-4 text-sm">
+                No one new around here, or try adjusting your radius. Check back later for new travel buddies!
+              </p>
+              <Button onClick={() => fetchProfiles(true)} variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4" /> Refresh
               </Button>
             </div>
           )
         )}
+         {isLoading && profiles.length > 0 && 
+            <div className="absolute inset-0 flex items-center justify-center bg-background/30 backdrop-blur-sm rounded-2xl z-20">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+          }
       </div>
 
       {profiles.length > 0 && (
@@ -157,7 +219,6 @@ export default function MatchPage() {
         </div>
       )}
       
-      {isLoading && profiles.length > 0 && <Loader2 className="h-8 w-8 animate-spin text-primary mt-4" />}
 
       <MatchPopup
         isOpen={showMatchPopup}
@@ -168,3 +229,4 @@ export default function MatchPage() {
     </div>
   );
 }
+

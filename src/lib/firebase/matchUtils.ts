@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { UserProfile, SwipeAction } from '@/types';
+import type { UserProfile, SwipeAction, Coordinates } from '@/types';
 import {
   collection,
   query,
@@ -16,78 +16,125 @@ import {
   orderBy,
   startAfter,
   QueryDocumentSnapshot,
+  addDoc,
 } from 'firebase/firestore';
 
 const PROFILES_PER_FETCH = 10;
+const PROFILES_FETCH_MULTIPLIER_FOR_RADIUS_FILTER = 3; // Fetch more if radius filtering
 
 // Helper function to get a sorted match ID
 const getMatchDocId = (uid1: string, uid2: string): string => {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 };
 
+// --- Haversine Distance Calculation ---
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+}
+
+function deg2rad(deg: number): number {
+  return deg * (Math.PI / 180);
+}
+// --- End Haversine Distance Calculation ---
+
 /**
- * Fetches potential users to swipe, excluding the current user, users already swiped by the current user,
- * and users already matched with the current user.
+ * Fetches potential users to swipe.
  */
 export async function getUsersToSwipe(
   currentUserId: string,
-  lastFetchedUserSnap: QueryDocumentSnapshot | null
+  lastFetchedUserSnap: QueryDocumentSnapshot | null,
+  currentUserCoordinates?: Coordinates,
+  searchRadiusKm?: number
 ): Promise<{profiles: UserProfile[], newLastFetchedUserSnap: QueryDocumentSnapshot | null}> {
   try {
-    // 1. Get UIDs of users already swiped by the current user
     const swipesQuery = query(collection(db, 'swipes'), where('swiperId', '==', currentUserId));
     const swipesSnapshot = await getDocs(swipesQuery);
     const swipedUserIds = swipesSnapshot.docs.map(doc => doc.data().swipedUserId);
 
-    // 2. Get UIDs of users already matched with the current user
     const matchesQuery = query(collection(db, 'matches'), where('users', 'array-contains', currentUserId));
     const matchesSnapshot = await getDocs(matchesQuery);
     const matchedUserIds = matchesSnapshot.docs.flatMap(doc => doc.data().users).filter(uid => uid !== currentUserId);
     
     const excludedUserIds = new Set([currentUserId, ...swipedUserIds, ...matchedUserIds]);
     
-    // 3. Fetch users, excluding the ones identified above
-    // Firestore does not support 'not-in' queries with more than 10 items directly in a scalable way for large datasets,
-    // nor does it support multiple '!=' clauses efficiently.
-    // A common workaround is to fetch users and filter client-side, or use more complex data structures / backend logic.
-    // For this example, we'll fetch users and if the excluded list is small enough, try to use 'not-in'.
-    // If excludedUserIds is too large, we fetch and filter. This isn't ideal for massive scale.
-
     let usersQuery;
     const usersCollectionRef = collection(db, 'users');
+    
+    // Determine fetch limit: fetch more if radius filter is active to get enough results after client-side filtering
+    const fetchLimit = (currentUserCoordinates && searchRadiusKm) 
+        ? PROFILES_PER_FETCH * PROFILES_FETCH_MULTIPLIER_FOR_RADIUS_FILTER 
+        : PROFILES_PER_FETCH;
 
-    if (excludedUserIds.size > 0 && excludedUserIds.size <= 10) { // Firestore 'not-in' limit
+    if (excludedUserIds.size > 0 && excludedUserIds.size <= 30) { // Firestore 'not-in' limit is 30 in v9+
         usersQuery = query(
             usersCollectionRef,
             where('uid', 'not-in', Array.from(excludedUserIds)),
-            orderBy('uid'), // Required for pagination with 'not-in'
+            orderBy('uid'), 
             ...(lastFetchedUserSnap ? [startAfter(lastFetchedUserSnap)] : []),
-            limit(PROFILES_PER_FETCH)
+            limit(fetchLimit)
         );
     } else {
-         // Fallback: fetch users and filter client-side if 'not-in' is not viable
         usersQuery = query(
             usersCollectionRef,
-            where('uid', '!=', currentUserId), // Basic exclusion
+            where('uid', '!=', currentUserId), 
             orderBy('uid'),
             ...(lastFetchedUserSnap ? [startAfter(lastFetchedUserSnap)] : []),
-            limit(PROFILES_PER_FETCH * 2) // Fetch more to account for client-side filtering
+            limit(fetchLimit) 
         );
     }
     
     const usersSnapshot = await getDocs(usersQuery);
     
-    let profiles: UserProfile[] = usersSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as UserProfile))
-      .filter(profile => !excludedUserIds.has(profile.uid)); // Client-side filter if not-in wasn't used or to be sure
+    let fetchedProfiles: UserProfile[] = usersSnapshot.docs
+      .map(doc => {
+          const data = doc.data();
+          const profile: UserProfile = { 
+            uid: doc.id, // Use doc.id as uid if 'uid' field isn't explicitly set (though it should be)
+            ...data,
+            // Ensure date fields are converted if necessary (though this should ideally happen in AuthContext or when data is set)
+            dateOfBirthDate: data.dateOfBirth?.toDate ? data.dateOfBirth.toDate() : data.dateOfBirth,
+            joinedAtDate: data.joinedAt?.toDate ? data.joinedAt.toDate() : data.joinedAt,
+           } as UserProfile;
+          return profile;
+      })
+      .filter(profile => !excludedUserIds.has(profile.uid)); // Ensure final exclusion
 
-    if (profiles.length > PROFILES_PER_FETCH) {
-        profiles = profiles.slice(0, PROFILES_PER_FETCH);
+    let profilesToReturn: UserProfile[] = [];
+
+    if (currentUserCoordinates && searchRadiusKm && searchRadiusKm > 0) {
+      profilesToReturn = fetchedProfiles.filter(profile => {
+        if (!profile.currentLocation?.coordinates) return false; // Skip profiles without location
+        const distance = getDistanceFromLatLonInKm(
+          currentUserCoordinates.latitude,
+          currentUserCoordinates.longitude,
+          profile.currentLocation.coordinates.latitude,
+          profile.currentLocation.coordinates.longitude
+        );
+        return distance <= searchRadiusKm;
+      });
+    } else {
+      profilesToReturn = fetchedProfiles;
     }
     
-    const newLastFetchedUserSnap = usersSnapshot.docs.length > 0 ? usersSnapshot.docs[usersSnapshot.docs.length - 1] : null;
+    // Ensure we don't return more than PROFILES_PER_FETCH, even if radius filter fetched more
+    if (profilesToReturn.length > PROFILES_PER_FETCH) {
+        profilesToReturn = profilesToReturn.slice(0, PROFILES_PER_FETCH);
+    }
+    
+    // The newLastFetchedUserSnap should be from the original unfiltered fetch,
+    // to ensure pagination continues correctly over the whole dataset.
+    const newLastSnap = usersSnapshot.docs.length > 0 ? usersSnapshot.docs[usersSnapshot.docs.length - 1] : null;
 
-    return { profiles, newLastFetchedUserSnap };
+    return { profiles: profilesToReturn, newLastFetchedUserSnap: newLastSnap };
 
   } catch (error) {
     console.error("Error fetching users to swipe:", error);
@@ -107,8 +154,6 @@ export async function recordSwipe(swiperId: string, swipedUserId: string, action
       action,
       timestamp: serverTimestamp(),
     };
-    // Use a specific ID for swipes to easily check for existing swipes if needed, or allow multiple swipes (e.g., if a user changes their mind)
-    // For simplicity, we'll let Firestore auto-generate IDs for swipe documents.
     await addDoc(collection(db, 'swipes'), swipeData);
   } catch (error) {
     console.error("Error recording swipe:", error);
@@ -117,13 +162,10 @@ export async function recordSwipe(swiperId: string, swipedUserId: string, action
 }
 
 /**
- * Checks if a mutual like exists (i.e., if the other user has also liked the current user).
- * If a mutual like is found, creates a match document in Firestore.
- * Returns the UserProfile of the matched user if a match is made, otherwise null.
+ * Checks if a mutual like exists and creates a match document.
  */
 export async function checkForAndCreateMatch(swiperId: string, likedUserId: string): Promise<UserProfile | null> {
   try {
-    // Check if likedUserId has also liked swiperId
     const reverseSwipeQuery = query(
       collection(db, 'swipes'),
       where('swiperId', '==', likedUserId),
@@ -134,40 +176,37 @@ export async function checkForAndCreateMatch(swiperId: string, likedUserId: stri
     const reverseSwipeSnapshot = await getDocs(reverseSwipeQuery);
 
     if (!reverseSwipeSnapshot.empty) {
-      // Mutual like! Create a match.
       const matchId = getMatchDocId(swiperId, likedUserId);
       const matchDocRef = doc(db, 'matches', matchId);
-
-      // Check if match already exists to prevent duplicates (though sorted ID should handle this)
       const matchDocSnap = await getDoc(matchDocRef);
+
       if (matchDocSnap.exists()) {
         console.log("Match already exists:", matchId);
-        // Optionally, fetch and return profile if needed, or handle as "already matched"
         const likedUserProfileSnap = await getDoc(doc(db, 'users', likedUserId));
         return likedUserProfileSnap.exists() ? ({ uid: likedUserId, ...likedUserProfileSnap.data() } as UserProfile) : null;
       }
       
       const batch = writeBatch(db);
       batch.set(matchDocRef, {
-        users: [swiperId, likedUserId].sort(), // Store sorted UIDs
+        users: [swiperId, likedUserId].sort(), 
         timestamp: serverTimestamp(),
       });
       await batch.commit();
 
-      // Fetch the profile of the matched user to return
       const likedUserProfileSnap = await getDoc(doc(db, 'users', likedUserId));
       if (likedUserProfileSnap.exists()) {
-        return { uid: likedUserId, ...likedUserProfileSnap.data() } as UserProfile;
+        const data = likedUserProfileSnap.data();
+        return { 
+            uid: likedUserId, 
+            ...data,
+            dateOfBirthDate: data.dateOfBirth?.toDate ? data.dateOfBirth.toDate() : data.dateOfBirth,
+            joinedAtDate: data.joinedAt?.toDate ? data.joinedAt.toDate() : data.joinedAt,
+        } as UserProfile;
       }
     }
-    return null; // No mutual like found
+    return null;
   } catch (error) {
     console.error("Error checking for or creating match:", error);
-    throw error; // Re-throw to be handled by the caller
+    throw error; 
   }
 }
-
-// Placeholder for fetching user profiles (already in use in other parts of the app)
-// For example, in /app/(main)/explore/page.tsx
-// You might need a dedicated function if you want to fetch multiple specific profiles by ID.
-import { addDoc } from 'firebase/firestore'; // Ensure addDoc is imported
