@@ -173,33 +173,36 @@ export default function EditProfilePage() {
     },
   });
   
-  const calculateProfileCompletion = useCallback((profileDataForCalc: ProfileFormData, currentProfile: UserProfile | null): number => {
-    if (!currentProfile) return 0;
-    // Use a mix of form data (for currently edited fields) and existing profile data (for fields not in form or unchanged)
+  const calculateProfileCompletion = useCallback((profileDataForCalc: Partial<ProfileFormData>, currentProfile: UserProfile | null): number => {
+    if (!currentProfile && !Object.keys(profileDataForCalc).length) return 0;
+    
+    const dataToUse = { ...currentProfile, ...profileDataForCalc };
+
     const fields = [
-      profileDataForCalc.name || currentProfile.name,
-      profileDataForCalc.username || currentProfile.username,
-      avatarPreview || currentProfile.avatar, // Check if new avatar is being uploaded
-      profileDataForCalc.dateOfBirth || currentProfile.dateOfBirthDate,
-      profileDataForCalc.gender || currentProfile.gender,
-      (profileDataForCalc.interestedIn?.length) || currentProfile.interestedIn?.length,
-      profileDataForCalc.bio || currentProfile.bio,
-      profileDataForCalc.phoneNumber || currentProfile.phoneNumber,
-      (profileDataForCalc.travelStyles?.length) || currentProfile.travelStyles?.length,
-      stringToArray(profileDataForCalc.favoriteDestinations).length || currentProfile.favoriteDestinations?.length,
-      stringToArray(profileDataForCalc.bucketList).length || currentProfile.bucketList?.length,
-      stringToArray(profileDataForCalc.interests).length || currentProfile.interests?.length,
-      stringToArray(profileDataForCalc.languagesSpoken).length || currentProfile.languagesSpoken?.length,
-      profileDataForCalc.currentLocationAddress || currentProfile.currentLocation?.address,
-      profileDataForCalc.matchPreferences_ageRange || currentProfile.matchPreferences?.ageRange,
-      (profileDataForCalc.matchPreferences_lookingFor?.length) || currentProfile.matchPreferences?.lookingFor?.length,
+      dataToUse.name,
+      dataToUse.username,
+      avatarPreview || dataToUse.avatar,
+      dataToUse.dateOfBirth || dataToUse.dateOfBirthDate,
+      dataToUse.gender,
+      Array.isArray(dataToUse.interestedIn) && dataToUse.interestedIn.length > 0,
+      dataToUse.bio,
+      dataToUse.phoneNumber,
+      Array.isArray(dataToUse.travelStyles) && dataToUse.travelStyles.length > 0,
+      stringToArray(dataToUse.favoriteDestinations).length > 0,
+      stringToArray(dataToUse.bucketList).length > 0,
+      stringToArray(dataToUse.interests).length > 0,
+      stringToArray(dataToUse.languagesSpoken).length > 0,
+      dataToUse.currentLocationAddress || dataToUse.currentLocation?.address,
+      dataToUse.matchPreferences_ageRange || dataToUse.matchPreferences?.ageRange,
+      Array.isArray(dataToUse.matchPreferences_lookingFor) && dataToUse.matchPreferences_lookingFor.length > 0,
     ];
     const filledFields = fields.filter(field => {
       if (typeof field === 'string') return field.trim() !== '';
-      if (typeof field === 'number') return field > 0;
-      return !!field;
+      if (typeof field === 'number') return field > 0; // For counts or distances
+      if (typeof field === 'boolean') return field === true; // For checkbox-like values
+      return !!field; // For dates, objects, arrays (existence)
     }).length;
-    return Math.min(100, Math.round((filledFields / fields.length) * 100) + 10);
+    return Math.min(100, Math.round((filledFields / fields.length) * 100) + 10); // Base 10% for joining
   }, [avatarPreview]);
 
 
@@ -207,6 +210,7 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     if (userProfile) {
+      const currentSocials = userProfile.socialMediaLinks;
       const initialFormValues = {
         name: userProfile.name || '',
         username: userProfile.username || '',
@@ -215,7 +219,14 @@ export default function EditProfilePage() {
         interestedIn: userProfile.interestedIn || [],
         bio: userProfile.bio || '',
         phoneNumber: userProfile.phoneNumber || '',
-        socialMediaLinks: userProfile.socialMediaLinks || { instagram: '', linkedin: '', twitter: '', facebook: '', tiktok: '', website: '' },
+        socialMediaLinks: {
+          instagram: currentSocials?.instagram || '',
+          linkedin: currentSocials?.linkedin || '',
+          twitter: currentSocials?.twitter || '',
+          facebook: currentSocials?.facebook || '',
+          tiktok: currentSocials?.tiktok || '',
+          website: currentSocials?.website || '',
+        },
         travelStyles: userProfile.travelStyles || [],
         favoriteDestinations: arrayToString(userProfile.favoriteDestinations),
         bucketList: arrayToString(userProfile.bucketList),
@@ -256,7 +267,7 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     const subscription = form.watch((value) => {
-        setProfileCompletion(calculateProfileCompletion(value as ProfileFormData, userProfile));
+        setProfileCompletion(calculateProfileCompletion(value as Partial<ProfileFormData>, userProfile));
     });
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -412,7 +423,6 @@ export default function EditProfilePage() {
             ...finalUpdateData, 
             dateOfBirthDate: data.dateOfBirth, 
             lastUpdatedDate: new Date(),
-            // Ensure all array fields are correctly represented, even if they become empty
             interestedIn: finalUpdateData.interestedIn === null ? [] : finalUpdateData.interestedIn,
             travelStyles: finalUpdateData.travelStyles === null ? [] : finalUpdateData.travelStyles,
             favoriteDestinations: finalUpdateData.favoriteDestinations === null ? [] : finalUpdateData.favoriteDestinations,
@@ -560,7 +570,7 @@ export default function EditProfilePage() {
                           <FormItem>
                             <FormLabel htmlFor={`social-${platform.id}`}>{platform.name}</FormLabel>
                             <FormControl>
-                              <Input id={`social-${platform.id}`} placeholder={platform.placeholder} {...field} value={field.value || ''} />
+                              <Input id={`social-${platform.id}`} placeholder={platform.placeholder} {...field} value={field.value ?? ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -794,3 +804,4 @@ export default function EditProfilePage() {
     </div>
   );
 }
+
