@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation'; // Added usePathname
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 export default function HomePage() { 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -25,7 +25,7 @@ export default function HomePage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname(); // Get current pathname
+  const pathname = usePathname();
 
   useEffect(() => {
     setLoading(true);
@@ -33,32 +33,50 @@ export default function HomePage() {
     const q = query(postsCollection, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      const postsData = await Promise.all(querySnapshot.docs.map(async (docSnapshot) => {
-        const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
-        
-        if (post.createdAt && typeof (post.createdAt as Timestamp).toDate === 'function') {
-          post.createdAtDate = (post.createdAt as Timestamp).toDate();
-        } else if (post.createdAt instanceof Date) {
-           post.createdAtDate = post.createdAt;
-        }
+      try {
+        const postsDataPromises = querySnapshot.docs.map(async (docSnapshot) => {
+          try {
+            const postData = docSnapshot.data();
+            const post = { id: docSnapshot.id, ...postData } as Post;
+            
+            if (postData.createdAt && typeof (postData.createdAt as Timestamp).toDate === 'function') {
+              post.createdAtDate = (postData.createdAt as Timestamp).toDate();
+            } else if (postData.createdAt instanceof Date) {
+              post.createdAtDate = postData.createdAt;
+            }
 
-        if (post.userId) {
-          const userRef = doc(db, 'users', post.userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            post.user = userSnap.data() as UserProfile;
-            if (post.user.joinedAt && typeof (post.user.joinedAt as Timestamp).toDate === 'function') {
-              post.user.joinedAtDate = (post.user.joinedAt as Timestamp).toDate();
+            if (postData.userId) {
+              const userRef = doc(db, 'users', postData.userId);
+              const userSnap = await getDoc(userRef);
+              if (userSnap.exists()) {
+                const userData = userSnap.data();
+                post.user = userData as UserProfile;
+                if (userData.joinedAt && typeof (userData.joinedAt as Timestamp).toDate === 'function') {
+                  post.user.joinedAtDate = (userData.joinedAt as Timestamp).toDate();
+                }
+                if (userData.dateOfBirth && typeof (userData.dateOfBirth as Timestamp).toDate === 'function') {
+                  post.user.dateOfBirthDate = (userData.dateOfBirth as Timestamp).toDate();
+                }
+              } else {
+                post.user = undefined; 
+              }
             }
-             if (post.user.dateOfBirth && typeof (post.user.dateOfBirth as Timestamp).toDate === 'function') {
-              post.user.dateOfBirthDate = (post.user.dateOfBirth as Timestamp).toDate();
-            }
+            return post;
+          } catch (postError) {
+            console.error(`Error processing post ${docSnapshot.id}:`, postError);
+            return null; 
           }
-        }
-        return post;
-      }));
-      setPosts(postsData);
-      setLoading(false);
+        });
+
+        const resolvedPostsData = await Promise.all(postsDataPromises);
+        const validPostsData = resolvedPostsData.filter(p => p !== null) as Post[];
+        setPosts(validPostsData);
+
+      } catch (snapshotProcessingError) {
+        console.error("Error processing snapshot data:", snapshotProcessingError);
+      } finally {
+        setLoading(false);
+      }
     }, (error) => {
       console.error("Error fetching posts with onSnapshot:", error);
       setLoading(false);
@@ -74,13 +92,21 @@ export default function HomePage() {
         const postToSelect = posts.find(p => p.id === postIdFromQuery);
         if (postToSelect) {
           setSelectedPost(postToSelect);
+        } else {
+           // If post not found, clear the query param to avoid confusion
+           if (searchParams.get('postId')) {
+             router.replace(pathname, { scroll: false });
+           }
         }
       }
     }
-  }, [posts, loading, searchParams, router]);
+  }, [posts, loading, searchParams, router, pathname]);
 
   const handlePostCardClick = useCallback((post: Post) => {
     setSelectedPost(post);
+    // Update URL to reflect selected post, but don't add to history if not from query
+    // This is optional and can be complex. For now, just open sheet.
+    // router.push(`${pathname}?postId=${post.id}`, { scroll: false }); 
   }, []);
 
   const handleLikeUpdateInHome = useCallback((postId: string, newLikes: string[]) => {
@@ -147,8 +173,9 @@ export default function HomePage() {
         onOpenChange={(isOpen) => { 
           if (!isOpen) {
             setSelectedPost(null);
+            // If the sheet was opened via URL param, clear it
             if (searchParams.get('postId')) {
-                router.replace(pathname, { scroll: false }); // Use current pathname
+                router.replace(pathname, { scroll: false }); 
             }
           }
         }}
