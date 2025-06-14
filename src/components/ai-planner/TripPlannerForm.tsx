@@ -15,11 +15,15 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { Loader2, Wand2 } from 'lucide-react';
-import { type PlanTripInput, type PlanTripOutput, planTrip } from '@/ai/flows'; // Import flow and types
-import { PlanTripInputSchema } from '@/ai/schemas'; // Import schema from centralized location
+import { Loader2, Wand2, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { type PlanTripInput, type PlanTripOutput, planTrip } from '@/ai/flows';
+import { PlanTripInputSchema } from '@/ai/schemas';
 import ItineraryDisplay from './ItineraryDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -28,13 +32,13 @@ export default function TripPlannerForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [tripPlan, setTripPlan] = useState<PlanTripOutput | null>(null);
 
-  const form = useForm<PlanTripInput>({
-    resolver: zodResolver(PlanTripInputSchema), // Use imported schema
+  const form = useForm<PlanTripInput>({ // PlanTripInput now expects Dates
+    resolver: zodResolver(PlanTripInputSchema),
     defaultValues: {
       destination: '',
-      startDate: '',
-      endDate: '',
-      numberOfDays: undefined, 
+      startDate: null,
+      endDate: null,
+      numberOfDays: undefined,
       budget: '',
       interests: '',
       numberOfPeople: 1,
@@ -45,6 +49,7 @@ export default function TripPlannerForm() {
     setIsLoading(true);
     setTripPlan(null);
     try {
+      // Values already match PlanTripInput which expects Date | null | undefined for dates
       const apiInput: PlanTripInput = {
         ...values,
         numberOfDays: values.numberOfDays ? Number(values.numberOfDays) : undefined,
@@ -97,11 +102,33 @@ export default function TripPlannerForm() {
                 control={form.control}
                 name="startDate"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Start Date (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Next Monday or 2024-12-25" {...field} />
-                    </FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          captionLayout="dropdown-buttons" fromYear={new Date().getFullYear() -1} toYear={new Date().getFullYear() + 5}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -110,11 +137,36 @@ export default function TripPlannerForm() {
                 control={form.control}
                 name="endDate"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>End Date (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Next Friday or 2024-12-30" {...field} />
-                    </FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            form.getValues("startDate") ? date < form.getValues("startDate")! : false
+                          }
+                          captionLayout="dropdown-buttons" fromYear={new Date().getFullYear() -1} toYear={new Date().getFullYear() + 5}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -128,7 +180,14 @@ export default function TripPlannerForm() {
                 <FormItem>
                   <FormLabel>Number of Days (Optional)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="e.g., 5" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} />
+                    <Input 
+                      type="number" 
+                      placeholder="e.g., 5" 
+                      {...field} 
+                      value={field.value ?? ''} // Handle null/undefined for controlled input
+                      onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} 
+                      min="1"
+                    />
                   </FormControl>
                   <FormDescription>If dates are provided, AI can infer this.</FormDescription>
                   <FormMessage />
@@ -172,7 +231,14 @@ export default function TripPlannerForm() {
                 <FormItem>
                   <FormLabel>Number of People</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="e.g., 2" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))} min="1" />
+                    <Input 
+                      type="number" 
+                      placeholder="e.g., 2" 
+                      {...field} 
+                      value={field.value ?? ''} // Handle null/undefined
+                      onChange={e => field.onChange(e.target.value === '' ? 1 : parseInt(e.target.value, 10) || 1)} 
+                      min="1" 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

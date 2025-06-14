@@ -15,14 +15,23 @@ const ItineraryItemSchema = z.object({
 });
 
 export const PlanTripInputSchema = z.object({
-  destination: z.string().describe('The primary destination of the trip (e.g., "Pokhara, Nepal", "Paris").'),
-  startDate: z.string().describe('The starting date of the trip (e.g., "next Monday", "2024-12-25"). Can be relative or specific.').optional(),
-  endDate: z.string().describe('The ending date of the trip (e.g., "next Friday", "2024-12-30"). Can be relative or specific.').optional(),
-  numberOfDays: z.number().int().positive().describe('The total number of days for the trip. If startDate and endDate are provided, this can be derived by the AI.').optional(),
-  budget: z.string().describe('The estimated budget for the trip (e.g., "NPR 15000", "moderate", "luxury").'),
-  interests: z.string().describe('A comma-separated list of interests for the trip (e.g., "hiking, food, museums, photography, adventure, relaxation").'),
-  numberOfPeople: z.number().int().positive().default(1).describe('The number of people participating in the trip.'),
+  destination: z.string().min(1, "Destination is required.").describe('The primary destination of the trip (e.g., "Pokhara, Nepal", "Paris").'),
+  startDate: z.date().optional().nullable().describe('The starting date of the trip.'),
+  endDate: z.date().optional().nullable().describe('The ending date of the trip.'),
+  numberOfDays: z.number().int().positive().optional().nullable().describe('The total number of days for the trip. If startDate and endDate are provided, this can be derived by the AI.'),
+  budget: z.string().min(1, "Budget is required.").describe('The estimated budget for the trip (e.g., "NPR 15000", "moderate", "luxury").'),
+  interests: z.string().min(1, "Interests are required.").describe('A comma-separated list of interests for the trip (e.g., "hiking, food, museums, photography, adventure, relaxation").'),
+  numberOfPeople: z.number().int().positive().min(1).default(1).describe('The number of people participating in the trip.'),
+}).refine(data => {
+  if (data.startDate && data.endDate && data.endDate < data.startDate) {
+    return false;
+  }
+  return true;
+}, {
+  message: "End date cannot be before start date.",
+  path: ["endDate"],
 });
+
 
 export const PlanTripOutputSchema = z.object({
   tripTitle: z.string().describe("A catchy and descriptive title for the overall trip plan (e.g., '5-Day Pokhara Adventure for Nature Lovers')."),
@@ -42,9 +51,9 @@ const PackingListCategorySchema = z.object({
 });
 
 export const GeneratePackingListInputSchema = z.object({
-  destination: z.string().describe('The primary destination of the trip (e.g., "Pokhara, Nepal", "Phuket, Thailand").'),
-  tripType: z.string().describe('The type of trip (e.g., "beach vacation", "mountain trekking", "city exploration", "business trip").'),
-  durationDays: z.number().int().positive().describe('The total number of days for the trip.'),
+  destination: z.string().min(1, "Destination is required.").describe('The primary destination of the trip (e.g., "Pokhara, Nepal", "Phuket, Thailand").'),
+  tripType: z.string().min(1, "Trip type is required.").describe('The type of trip (e.g., "beach vacation", "mountain trekking", "city exploration", "business trip").'),
+  durationDays: z.number().int().positive({ message: "Duration must be a positive number."}).min(1, { message: "Duration must be at least 1 day."}).describe('The total number of days for the trip.'),
   weather: z.string().describe('A brief description of the expected weather or season (e.g., "sunny with chances of rain", "cold and snowy", "tropical monsoon", "summer").').optional(),
   genderContext: z.enum(["male", "female", "neutral"]).default("neutral").describe("Gender context for clothing suggestions, if applicable. Defaults to neutral.").optional(),
 });
