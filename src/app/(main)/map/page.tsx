@@ -17,7 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { Map as LeafletMap } from 'leaflet';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'; // Added usePathname, useSearchParams
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'; 
 import Image from 'next/image';
 
 export default function MapPage() {
@@ -29,6 +29,7 @@ export default function MapPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const postIdFromQuery = searchParams.get('postId'); // Extract postId here
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -143,7 +144,7 @@ export default function MapPage() {
         onOpenChange={(isOpen) => { 
             if (!isOpen) {
                 setSelectedPostForSheet(null);
-                 if (searchParams.get('postId')) { // Check if postId was in query
+                 if (postIdFromQuery) { // Use the extracted postIdFromQuery
                     router.replace(pathname, { scroll: false }); // Clear query params
                 }
             }
@@ -154,7 +155,7 @@ export default function MapPage() {
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">
                 <SheetTitle className="sr-only">{selectedPostForSheet.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {selectedPostForSheet.caption ? selectedPostForSheet.caption.substring(0,100) : ''}</SheetDescription>
+                <SheetDescription className="sr-only">Detailed view of: {(selectedPostForSheet.caption || "").substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
                 <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInSheet} onSaveUpdate={handleSaveUpdateInSheet}/>
