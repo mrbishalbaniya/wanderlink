@@ -13,14 +13,15 @@ export interface Post {
   userId: string;
   user?: UserProfile; 
   title: string;
-  caption: string; // Renamed from description
+  caption: string; 
   coordinates: Coordinates;
-  locationLabel?: string; // Added for human-readable location of the post
+  locationLabel?: string; 
   category: PostCategory;
   images: string[];
   createdAt: Timestamp | Date; 
   likes: string[]; 
   savedBy?: string[]; 
+  commentCount?: number; // Added for comment count
   createdAtDate?: Date; 
 }
 

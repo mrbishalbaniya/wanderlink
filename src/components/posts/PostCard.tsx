@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, Bookmark, MapPin, Pin } from 'lucide-react'; // Added Pin
+import { Heart, MessageCircle, Share2, Bookmark, MapPin, Pin } from 'lucide-react'; 
 import type { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -63,8 +63,8 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
     } catch (error) {
       console.error("Error updating like:", error);
       toast({ title: "Error", description: "Could not update like status.", variant: "destructive" });
-      setIsLiked(!newLikedStatus);
-      setLikeCount(prevCount => newLikedStatus ? prevCount -1 : prevCount + 1);
+      setIsLiked(!newLikedStatus); // Revert optimistic update
+      setLikeCount(prevCount => newLikedStatus ? prevCount -1 : prevCount + 1); // Revert optimistic update
     }
   };
 
@@ -94,7 +94,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
     } catch (error) {
         console.error("Error updating save status:", error);
         toast({ title: "Error", description: "Could not update save status.", variant: "destructive" });
-        setIsSaved(!newSavedStatus);
+        setIsSaved(!newSavedStatus); // Revert optimistic update
     }
   };
 
@@ -104,6 +104,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
   const userName = post.user?.name || 'Anonymous';
   const userAvatar = post.user?.avatar || `https://placehold.co/40x40.png?text=${userName.charAt(0)}`;
   const userGeneralLocation = post.user?.currentLocation?.address || null;
+  const commentCount = post.commentCount ?? 0;
 
   return (
     <Card className="w-full overflow-hidden glassmorphic-card">
@@ -136,7 +137,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
               <CarouselItem key={index}>
-                <div className="relative aspect-[4/3] w-full"> {/* Adjusted aspect ratio */}
+                <div className="relative aspect-[4/3] w-full"> 
                   <Image 
                     src={imgUrl} 
                     alt={`${post.title} image ${index + 1}`} 
@@ -178,7 +179,8 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate }: PostCardP
           </Button>
           <Button variant="ghost" size="sm" className="flex items-center space-x-1.5 text-muted-foreground hover:text-primary">
             <MessageCircle className="h-5 w-5 text-foreground/70" />
-            <span className="hidden sm:inline">Comment</span> 
+            <span className="font-medium">{commentCount}</span>
+            <span className="hidden sm:inline">{commentCount === 1 ? 'Comment' : 'Comments'}</span> 
           </Button>
         </div>
         <div className="flex space-x-1 md:space-x-2">

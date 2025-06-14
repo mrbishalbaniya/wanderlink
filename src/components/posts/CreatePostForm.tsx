@@ -26,7 +26,7 @@ import { useState, useEffect, useCallback } from 'react';
 import InteractiveMap from '@/components/map/InteractiveMap';
 import type { LatLng, LatLngTuple } from 'leaflet';
 import type { PostCategory } from '@/types';
-import { Loader2, UploadCloud, XCircle, Pin } from 'lucide-react'; // Added Pin
+import { Loader2, UploadCloud, XCircle, Pin } from 'lucide-react'; 
 import Image from 'next/image';
 
 const MAX_IMAGES = 5;
@@ -40,8 +40,8 @@ if (typeof window !== 'undefined') {
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(100),
-  caption: z.string().min(10, { message: 'Caption must be at least 10 characters.' }).max(1000), // Renamed
-  locationLabel: z.string().max(100, { message: 'Location label must be at most 100 characters.'}).optional(), // Added
+  caption: z.string().min(10, { message: 'Caption must be at least 10 characters.' }).max(1000), 
+  locationLabel: z.string().max(100, { message: 'Location label must be at most 100 characters.'}).optional(), 
   category: z.enum(['hiking', 'city', 'beach', 'food', 'culture', 'nature', 'other']),
 });
 
@@ -62,8 +62,8 @@ export default function CreatePostForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
-      caption: '', // Renamed
-      locationLabel: '', // Added
+      caption: '', 
+      locationLabel: '', 
       category: 'other',
     },
   });
@@ -173,14 +173,15 @@ export default function CreatePostForm() {
       const postData = {
         userId: currentUser.uid,
         title: values.title,
-        caption: values.caption, // Renamed
-        locationLabel: values.locationLabel || null, // Added, store as null if empty
+        caption: values.caption, 
+        locationLabel: values.locationLabel || null, 
         coordinates: { latitude: selectedLocation[0], longitude: selectedLocation[1] },
         category: values.category as PostCategory,
         images: imageUrls,
         createdAt: serverTimestamp(),
         likes: [],
         savedBy: [],
+        commentCount: 0, // Initialize comment count
       };
       
       await addDoc(collection(db, 'posts'), postData);
@@ -281,7 +282,7 @@ export default function CreatePostForm() {
                 <InteractiveMap 
                   onMapClick={handleMapClick} 
                   selectedLocation={selectedLocation}
-                  className="h-[300px] md:h-[calc(100%-110px)] min-h-[300px] w-full mt-2 rounded-lg shadow-md" // Adjusted height
+                  className="h-[300px] md:h-[calc(100%-110px)] min-h-[300px] w-full mt-2 rounded-lg shadow-md" 
                 />
                 {selectedLocation && (
                   <p className="text-sm text-muted-foreground mt-2">
