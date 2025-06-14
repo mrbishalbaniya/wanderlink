@@ -25,11 +25,11 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [selectedPostForSheet, setSelectedPostForSheet] = useState<Post | null>(null);
   const mapRefForPopupClose = useRef<LeafletMap | null>(null);
+  
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const postIdFromQuery = searchParams.get('postId'); // Extract postId here
+  const postIdFromQuery = searchParams.get('postId');
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -77,10 +77,9 @@ export default function MapPage() {
     if (postToView) {
         setSelectedPostForSheet(postToView);
     } else {
-        // If post not found locally (should be rare), redirect to main feed with postId
         router.push(`/?postId=${postId}`); 
     }
-  }, [posts, router]);
+  }, [posts, router, setSelectedPostForSheet]);
   
   const handleLikeUpdateInSheet = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
@@ -91,7 +90,7 @@ export default function MapPage() {
      if (selectedPostForSheet && selectedPostForSheet.id === postId) {
       setSelectedPostForSheet(prev => prev ? { ...prev, likes: newLikes } : null);
     }
-  }, [selectedPostForSheet]);
+  }, [selectedPostForSheet, setSelectedPostForSheet]);
 
   const handleSaveUpdateInSheet = useCallback((postId: string, newSavedBy: string[]) => {
     setPosts(currentPosts =>
@@ -102,7 +101,16 @@ export default function MapPage() {
     if (selectedPostForSheet && selectedPostForSheet.id === postId) {
       setSelectedPostForSheet(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
     }
-  }, [selectedPostForSheet]);
+  }, [selectedPostForSheet, setSelectedPostForSheet]);
+
+  const handleSheetOpenChange = useCallback((isOpen: boolean) => {
+    if (!isOpen) {
+        setSelectedPostForSheet(null);
+         if (postIdFromQuery) { 
+            router.replace(pathname, { scroll: false }); 
+        }
+    }
+  }, [postIdFromQuery, router, pathname, setSelectedPostForSheet]);
 
 
   if (loading) {
@@ -141,14 +149,7 @@ export default function MapPage() {
       
       <Sheet 
         open={!!selectedPostForSheet} 
-        onOpenChange={(isOpen) => { 
-            if (!isOpen) {
-                setSelectedPostForSheet(null);
-                 if (postIdFromQuery) { // Use the extracted postIdFromQuery
-                    router.replace(pathname, { scroll: false }); // Clear query params
-                }
-            }
-        }}
+        onOpenChange={handleSheetOpenChange}
       >
         <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right">
           {selectedPostForSheet && (

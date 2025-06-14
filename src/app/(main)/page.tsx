@@ -23,9 +23,11 @@ export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const postIdFromQuery = searchParams.get('postId');
 
   useEffect(() => {
     setLoading(true);
@@ -85,8 +87,6 @@ export default function HomePage() {
     return () => unsubscribe(); 
   }, []);
 
-  const postIdFromQuery = searchParams.get('postId');
-
   useEffect(() => {
     if (!loading && posts.length > 0) {
       if (postIdFromQuery) {
@@ -94,20 +94,15 @@ export default function HomePage() {
         if (postToSelect) {
           setSelectedPost(postToSelect);
         } else {
-           // If post not found after a query was present, it implies a bad link or stale data.
-           // Clearing the param makes sense.
            router.replace(pathname, { scroll: false });
         }
       }
     }
-  }, [posts, loading, postIdFromQuery, router, pathname]);
+  }, [posts, loading, postIdFromQuery, router, pathname, setSelectedPost]);
 
   const handlePostCardClick = useCallback((post: Post) => {
     setSelectedPost(post);
-    // Update URL to reflect selected post, but don't add to history if not from query
-    // This is optional and can be complex. For now, just open sheet.
-    // router.push(`${pathname}?postId=${post.id}`, { scroll: false }); 
-  }, []);
+  }, [setSelectedPost]);
 
   const handleLikeUpdateInHome = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
@@ -118,7 +113,7 @@ export default function HomePage() {
     if (selectedPost && selectedPost.id === postId) {
       setSelectedPost(prev => prev ? { ...prev, likes: newLikes } : null);
     }
-  }, [selectedPost]);
+  }, [selectedPost, setSelectedPost]);
 
   const handleSaveUpdateInHome = useCallback((postId: string, newSavedBy: string[]) => {
     setPosts(currentPosts =>
@@ -129,7 +124,16 @@ export default function HomePage() {
     if (selectedPost && selectedPost.id === postId) {
       setSelectedPost(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
     }
-  }, [selectedPost]);
+  }, [selectedPost, setSelectedPost]);
+
+  const handleSheetOpenChange = useCallback((isOpen: boolean) => {
+    if (!isOpen) {
+      setSelectedPost(null);
+      if (postIdFromQuery) {
+          router.replace(pathname, { scroll: false }); 
+      }
+    }
+  }, [postIdFromQuery, router, pathname, setSelectedPost]);
 
 
   if (loading && posts.length === 0) {
@@ -170,22 +174,14 @@ export default function HomePage() {
       
       <Sheet 
         open={!!selectedPost} 
-        onOpenChange={(isOpen) => { 
-          if (!isOpen) {
-            setSelectedPost(null);
-            // If the sheet was opened via URL param, clear it
-            if (searchParams.get('postId')) {
-                router.replace(pathname, { scroll: false }); 
-            }
-          }
-        }}
+        onOpenChange={handleSheetOpenChange}
       >
         <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right">
           {selectedPost && (
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">
                 <SheetTitle className="sr-only">{selectedPost.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {selectedPost.caption ? selectedPost.caption.substring(0,100) : ''}</SheetDescription>
+                <SheetDescription className="sr-only">Detailed view of: {(selectedPost.caption || "").substring(0,100)}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
                 <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} />
