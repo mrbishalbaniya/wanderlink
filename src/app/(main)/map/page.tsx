@@ -90,7 +90,7 @@ export default function MapPage() {
           return post;
         } catch (postError) {
           console.error(`Error processing post ${docSnapshot.id} for map:`, postError);
-          return null; // Skip this post if it causes an error
+          return null; 
         }
       });
       
@@ -150,6 +150,10 @@ export default function MapPage() {
     }
   }, [postIdFromQuery, router, pathname, setSelectedPostForSheet]);
 
+  const setMapInstanceCb = useCallback((mapInstance: LeafletMap | null) => {
+    mapRefForPopupClose.current = mapInstance;
+  }, []);
+
 
   if (loading) {
     return (
@@ -180,7 +184,7 @@ export default function MapPage() {
                 posts={posts} 
                 className="absolute inset-0" 
                 onPostClick={handlePostMarkerClickOnMap} 
-                setMapInstance={(mapInstance) => mapRefForPopupClose.current = mapInstance}
+                setMapInstance={setMapInstanceCb}
             />
         )}
       </div>
