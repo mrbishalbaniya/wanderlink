@@ -18,7 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
-import { PlanTripInputSchema, type PlanTripInput, type PlanTripOutput, planTrip } from '@/ai/flows';
+import { type PlanTripInput, type PlanTripOutput, planTrip } from '@/ai/flows'; // Import flow and types
+import { PlanTripInputSchema } from '@/ai/schemas'; // Import schema from centralized location
 import ItineraryDisplay from './ItineraryDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -28,12 +29,12 @@ export default function TripPlannerForm() {
   const [tripPlan, setTripPlan] = useState<PlanTripOutput | null>(null);
 
   const form = useForm<PlanTripInput>({
-    resolver: zodResolver(PlanTripInputSchema),
+    resolver: zodResolver(PlanTripInputSchema), // Use imported schema
     defaultValues: {
       destination: '',
       startDate: '',
       endDate: '',
-      numberOfDays: undefined, // Or a sensible default like 3 or 5
+      numberOfDays: undefined, 
       budget: '',
       interests: '',
       numberOfPeople: 1,
@@ -44,7 +45,6 @@ export default function TripPlannerForm() {
     setIsLoading(true);
     setTripPlan(null);
     try {
-      // Create a new object for the API call, ensuring numberOfDays is number or undefined
       const apiInput: PlanTripInput = {
         ...values,
         numberOfDays: values.numberOfDays ? Number(values.numberOfDays) : undefined,

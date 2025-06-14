@@ -5,5 +5,5 @@
 // In a real Genkit project, flows might be registered differently or imported directly.
 
 export { detectDuplicateImage, type DuplicateImageResult } from './detectDuplicateImageFlow';
-export { planTrip, type PlanTripInput, type PlanTripOutput, PlanTripInputSchema, PlanTripOutputSchema } from './planTripFlow';
-export { generatePackingList, type GeneratePackingListInput, type GeneratePackingListOutput, GeneratePackingListInputSchema, GeneratePackingListOutputSchema } from './generatePackingListFlow';
+export { planTrip, type PlanTripInput, type PlanTripOutput } from './planTripFlow'; // Removed schema exports
+export { generatePackingList, type GeneratePackingListInput, type GeneratePackingListOutput } from './generatePackingListFlow'; // Removed schema exports

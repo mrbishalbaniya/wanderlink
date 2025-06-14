@@ -10,28 +10,10 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { GeneratePackingListInputSchema, GeneratePackingListOutputSchema } from '@/ai/schemas'; // Import from centralized schemas
 
-const PackingListItemSchema = z.string().describe("A single item to pack (e.g., 'Hiking boots', 'Sunscreen SPF 50').");
-
-const PackingListCategorySchema = z.object({
-  categoryName: z.string().describe("The name of the packing category (e.g., 'Clothing', 'Toiletries', 'Electronics', 'Documents', 'Medication', 'Miscellaneous')."),
-  items: z.array(PackingListItemSchema).describe("A list of items belonging to this category."),
-});
-
-export const GeneratePackingListInputSchema = z.object({
-  destination: z.string().describe('The primary destination of the trip (e.g., "Pokhara, Nepal", "Phuket, Thailand").'),
-  tripType: z.string().describe('The type of trip (e.g., "beach vacation", "mountain trekking", "city exploration", "business trip").'),
-  durationDays: z.number().int().positive().describe('The total number of days for the trip.'),
-  weather: z.string().describe('A brief description of the expected weather or season (e.g., "sunny with chances of rain", "cold and snowy", "tropical monsoon", "summer").').optional(),
-  genderContext: z.enum(["male", "female", "neutral"]).default("neutral").describe("Gender context for clothing suggestions, if applicable. Defaults to neutral.").optional(),
-});
+// Export inferred types
 export type GeneratePackingListInput = z.infer<typeof GeneratePackingListInputSchema>;
-
-export const GeneratePackingListOutputSchema = z.object({
-  packingListName: z.string().describe("A descriptive name for this packing list (e.g., 'Packing List for 5-Day Pokhara Trek')."),
-  categories: z.array(PackingListCategorySchema).describe("An array of packing list categories, each containing items."),
-  additionalTips: z.string().describe("Any additional brief tips related to packing for this specific trip (e.g., 'Roll clothes to save space', 'Carry a photocopy of your passport').").optional(),
-});
 export type GeneratePackingListOutput = z.infer<typeof GeneratePackingListOutputSchema>;
 
 export async function generatePackingList(input: GeneratePackingListInput): Promise<GeneratePackingListOutput> {
@@ -64,11 +46,11 @@ const generatePackingListFlow = ai.defineFlow(
   async (input) => {
     const {output} = await ai.generate({
       prompt: systemPrompt,
-      model: 'googleai/gemini-2.0-flash', // Using Gemini Flash
+      model: 'googleai/gemini-2.0-flash',
       input,
       output: { schema: GeneratePackingListOutputSchema },
       config: {
-        temperature: 0.5, // More factual for packing lists
+        temperature: 0.5, 
       }
     });
     if (!output) {

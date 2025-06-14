@@ -14,12 +14,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+// import { Textarea } from '@/components/ui/textarea'; // Textarea not used in this form currently
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
-import { GeneratePackingListInputSchema, type GeneratePackingListInput, type GeneratePackingListOutput, generatePackingList } from '@/ai/flows';
+import { type GeneratePackingListInput, type GeneratePackingListOutput, generatePackingList } from '@/ai/flows'; // Import flow and types
+import { GeneratePackingListInputSchema } from '@/ai/schemas'; // Import schema from centralized location
 import PackingListDisplay from './PackingListDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -29,7 +30,7 @@ export default function PackingListForm() {
   const [packingList, setPackingList] = useState<GeneratePackingListOutput | null>(null);
 
   const form = useForm<GeneratePackingListInput>({
-    resolver: zodResolver(GeneratePackingListInputSchema),
+    resolver: zodResolver(GeneratePackingListInputSchema), // Use imported schema
     defaultValues: {
       destination: '',
       tripType: '',
