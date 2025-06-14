@@ -4,199 +4,220 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
+    // Helper Functions
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    function getIncomingData() {
-      return request.resource.data;
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    function getExistingData() {
-      return resource.data;
+    function isListOfUids(list) {
+      return list is list && (list.size() == 0 || list[0] is string);
     }
 
-    // =============================================
-    // Users Collection (profiles)
-    // =============================================
+    // User Profile Validation
+    function isValidUserProfileData(data) { // For create
+      return data.keys().hasAll(['uid', 'email', 'name', 'avatar', 'joinedAt']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.email is string &&
+             data.name is string && data.name.size() > 0 &&
+             data.avatar is string && data.avatar.size() > 0 &&
+             data.joinedAt == request.time &&
+             (data.username == null || (data.username is string && data.username.size() >= 3 && data.username.matches("^[a-z0-9_]+$"))) &&
+             (data.dateOfBirth == null || data.dateOfBirth is timestamp) &&
+             (data.gender == null || data.gender is string) &&
+             (data.interestedIn == null || (data.interestedIn is list && (data.interestedIn.size() == 0 || data.interestedIn[0] is string))) &&
+             (data.bio == null || (data.bio is string && data.bio.size() <= 1000)) &&
+             (data.phoneNumber == null || data.phoneNumber is string) &&
+             (data.profileCompletionScore == null || data.profileCompletionScore is number) &&
+             (data.idVerificationImageUrl == null || data.idVerificationImageUrl is string) &&
+             (data.isIdVerified == null || data.isIdVerified is bool);
+             // Add more optional field checks as needed
+    }
+
+    function isValidUserProfileUpdate(requestData, existingData) { // For update
+      let R = requestData;
+      let E = existingData;
+      return R.uid == E.uid &&
+             R.email == E.email && // Assuming email cannot be changed by user directly
+             R.joinedAt == E.joinedAt &&
+             (R.name is string && R.name.size() > 0) &&
+             (R.avatar is string && R.avatar.size() > 0) &&
+             (R.username == null || (R.username is string && R.username.size() >= 3 && R.username.matches("^[a-z0-9_]+$"))) &&
+             (R.dateOfBirth == null || R.dateOfBirth is timestamp) &&
+             (R.gender == null || R.gender is string) &&
+             (R.interestedIn == null || (R.interestedIn is list && (R.interestedIn.size() == 0 || R.interestedIn[0] is string))) &&
+             (R.bio == null || (R.bio is string && R.bio.size() <= 1000)) &&
+             (R.phoneNumber == null || R.phoneNumber is string) &&
+             (R.socialMediaLinks == null || R.socialMediaLinks is map) &&
+             (R.travelStyles == null || (R.travelStyles is list && (R.travelStyles.size() == 0 || R.travelStyles[0] is string))) &&
+             (R.favoriteDestinations == null || (R.favoriteDestinations is list && (R.favoriteDestinations.size() == 0 || R.favoriteDestinations[0] is string))) &&
+             (R.bucketList == null || (R.bucketList is list && (R.bucketList.size() == 0 || R.bucketList[0] is string))) &&
+             (R.preferredTransportModes == null || (R.preferredTransportModes is list && (R.preferredTransportModes.size() == 0 || R.preferredTransportModes[0] is string))) &&
+             (R.interests == null || (R.interests is list && (R.interests.size() == 0 || R.interests[0] is string))) &&
+             (R.languagesSpoken == null || (R.languagesSpoken is list && (R.languagesSpoken.size() == 0 || R.languagesSpoken[0] is string))) &&
+             (R.currentLocation == null || R.currentLocation is map) &&
+             (R.matchPreferences == null || R.matchPreferences is map) &&
+             (R.idVerificationImageUrl == null || R.idVerificationImageUrl is string) &&
+             (R.isIdVerified == null || R.isIdVerified is bool) && // isIdVerified should ideally only be updatable by an admin/backend process
+             (R.profileCompletionScore == null || R.profileCompletionScore is number) &&
+             (R.lastUpdated == request.time);
+    }
+
+    // Post Validation
+    function isValidPostData(data) { // For create
+      return data.keys().hasAll(['userId', 'title', 'caption', 'coordinates', 'category', 'images', 'createdAt', 'likes', 'savedBy', 'commentCount']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.title is string && data.title.size() >= 5 && data.title.size() <= 100 &&
+             data.caption is string && data.caption.size() >= 10 && data.caption.size() <= 1000 &&
+             (data.locationLabel == null || (data.locationLabel is string && data.locationLabel.size() <= 100)) &&
+             data.coordinates is map && data.coordinates.latitude is number && data.coordinates.longitude is number &&
+             data.category is string && ['hiking', 'city', 'beach', 'food', 'culture', 'nature', 'other'].hasAny([data.category]) &&
+             data.images is list && (data.images.size() == 0 || data.images[0] is string) && data.images.size() <= 5 &&
+             data.createdAt == request.time &&
+             data.likes is list && data.likes.size() == 0 &&
+             (data.savedBy == null || (data.savedBy is list && data.savedBy.size() == 0)) &&
+             data.commentCount is number && data.commentCount == 0;
+    }
+
+    function isUpdatingAllowedPostContentFields(requestData, existingData) { // For post content update by owner
+      let modifiableFields = ['title', 'caption', 'locationLabel', 'category', 'images', 'lastUpdated'];
+      let incomingKeys = requestData.keys();
+      // Owner content update should not touch these fields directly, they are managed by other rules/logic
+      let unchangedByOwnerFields = requestData.userId == existingData.userId &&
+                                   requestData.createdAt == existingData.createdAt &&
+                                   requestData.likes == existingData.likes &&
+                                   requestData.savedBy == existingData.savedBy &&
+                                   requestData.commentCount == existingData.commentCount;
+
+      return incomingKeys.hasOnly(modifiableFields.concat(['userId', 'createdAt', 'likes', 'savedBy', 'commentCount', 'coordinates'])) &&
+             unchangedByOwnerFields &&
+             (requestData.title is string && requestData.title.size() >= 5 && requestData.title.size() <= 100) &&
+             (requestData.caption is string && requestData.caption.size() >= 10 && requestData.caption.size() <= 1000) &&
+             (requestData.lastUpdated == request.time);
+             // Add more validation for other modifiable fields if necessary
+    }
+
+    function isUpdatingLikesOrSavesOnly(requestData, existingData, authUid) {
+      let R = requestData; // request data
+      let E = existingData; // existing data
+      let affected = R.diff(E).affectedKeys();
+
+      // Check if only 'likes' or 'savedBy' or both are in affectedKeys
+      let onlyLikesOrSavesChanged = (affected.has('likes') && affected.size() == 1) ||
+                                    (affected.has('savedBy') && affected.size() == 1) ||
+                                    (affected.hasAll(['likes', 'savedBy']) && affected.size() == 2);
+
+      // Ensure other critical fields remain unchanged
+      let coreFieldsUnchanged = R.userId == E.userId &&
+                                R.title == E.title &&
+                                R.caption == E.caption &&
+                                R.locationLabel == E.locationLabel &&
+                                R.coordinates.latitude == E.coordinates.latitude &&
+                                R.coordinates.longitude == E.coordinates.longitude &&
+                                R.category == E.category &&
+                                R.images == E.images &&
+                                R.createdAt == E.createdAt &&
+                                R.commentCount == E.commentCount;
+
+      let likesValid = true;
+      if (affected.has('likes')) {
+        let likesBefore = E.likes;
+        let likesAfter = R.likes;
+        let addedLike = likesAfter.size() == likesBefore.size() + 1 && authUid in likesAfter && !(authUid in likesBefore);
+        let removedLike = likesAfter.size() == likesBefore.size() - 1 && !(authUid in likesAfter) && authUid in likesBefore;
+        likesValid = (addedLike || removedLike) && isListOfUids(likesAfter);
+      }
+
+      let savedByValid = true;
+      if (affected.has('savedBy')) {
+        let savedByListBefore = E.savedBy == null ? [] : E.savedBy;
+        let savedByListAfter = R.savedBy;
+        let addedSave = savedByListAfter.size() == savedByListBefore.size() + 1 && authUid in savedByListAfter && !(authUid in savedByListBefore);
+        let removedSave = savedByListAfter.size() == savedByListBefore.size() - 1 && !(authUid in savedByListAfter) && authUid in savedByListBefore;
+        savedByValid = (addedSave || removedSave) && isListOfUids(savedByListAfter);
+      }
+
+      return onlyLikesOrSavesChanged && coreFieldsUnchanged && likesValid && savedByValid;
+    }
+
+    // Swipe Validation
+    function isValidSwipeData(data) {
+      return data.keys().hasAll(['swiperId', 'swipedUserId', 'action', 'timestamp']) &&
+             data.swiperId is string && data.swiperId == request.auth.uid &&
+             data.swipedUserId is string && data.swipedUserId != request.auth.uid &&
+             data.action is string && (data.action == 'like' || data.action == 'skip') &&
+             data.timestamp == request.time;
+    }
+
+    // Match Document ID helper
+    function getMatchDocId(uid1, uid2) {
+      return uid1 < uid2 ? uid1 + '_' + uid2 : uid2 + '_' + uid1;
+    }
+
+
+    // Collection Rules
     match /users/{userId} {
-      // Allow any authenticated user to fetch specific user profiles (needed for posts, matches, etc.)
-      // Be mindful of what data is in a user profile if all fields are readable like this.
-      // For stricter control, you might list readable fields or use subcollections for private data.
-      allow get: if isAuthenticated();
+      // Public GET for basic profile info needed for display purposes elsewhere
+      allow get: if isSignedIn(); // Allow any signed-in user to GET a profile (e.g., for PostCard, MatchCard)
+                                  // Consider if more granular field control is needed for `get` vs full `read`
 
-      // Allow a user to read all fields of their own profile.
-      allow read: if isAuthenticated() && isOwner(userId);
+      // Owner can READ all their own data (includes list operations if they were relevant, and get)
+      allow read: if isSignedIn() && isOwner(userId);
 
-      // Allow list operations only under specific conditions (e.g., for admin roles, not covered here)
-      // For general client use, listing all users is usually not allowed or needed.
-      allow list: if false; // Adjust if specific admin/listing features are needed with auth checks
-
-      allow create: if isAuthenticated() && isOwner(userId)
-                    && getIncomingData().uid == userId
-                    && getIncomingData().email == request.auth.email // Email must match token
-                    && getIncomingData().name is string && getIncomingData().name.size() > 0
-                    && getIncomingData().avatar is string
-                    && getIncomingData().joinedAt == request.time
-                    // Ensure only specific fields can be set on creation
-                    && getIncomingData().keys().hasOnly([
-                         'uid', 'email', 'name', 'avatar', 'joinedAt', 'profileCompletionScore',
-                         // Optional fields that can be set during creation (or have defaults)
-                         // Add other fields from UserProfile that are okay to be set at creation
-                         // Ensure sensitive fields like 'isIdVerified' are handled correctly
-                         'username', 'dateOfBirth', 'gender', 'interestedIn', 'bio',
-                         'phoneNumber', 'socialMediaLinks', 'travelStyles', 'favoriteDestinations',
-                         'bucketList', 'preferredTransportModes', 'travelFrequency',
-                         'travelAvailability', 'travelBudgetRange', 'interests', 'languagesSpoken',
-                         'musicPreferences', 'moviePreferences', 'bookPreferences',
-                         'currentLocation', 'willingToTravelTo', 'maxTravelDistance',
-                         'matchPreferences', 'idVerificationImageUrl', 'emergencyContact'
-                       ])
-                    && (!('isIdVerified' in getIncomingData()) || getIncomingData().isIdVerified == false) // User cannot self-verify on create
-                    && (!('profileCompletionScore' in getIncomingData()) || getIncomingData().profileCompletionScore is number);
-
-
-      allow update: if isAuthenticated() && isOwner(userId)
-                    // Fields that cannot be changed by the user after creation
-                    && getIncomingData().uid == getExistingData().uid
-                    && getIncomingData().email == getExistingData().email
-                    && getIncomingData().joinedAt == getExistingData().joinedAt
-                    // User cannot change their own verification status
-                    && (!('isIdVerified' in getIncomingData()) || getIncomingData().isIdVerified == getExistingData().isIdVerified)
-                    // Allow profileCompletionScore to be updated
-                    && (getIncomingData().profileCompletionScore is number || !('profileCompletionScore' in getIncomingData()) || getIncomingData().profileCompletionScore == getExistingData().profileCompletionScore);
-
-
-      allow delete: if false; // Generally, users don't delete their own accounts directly via client SDK.
+      allow create: if isOwner(userId) && isValidUserProfileData(request.resource.data);
+      allow update: if isSignedIn() && isOwner(userId) && isValidUserProfileUpdate(request.resource.data, resource.data);
+      allow delete: if false; // Users generally shouldn't delete their own accounts directly
     }
 
-    // =============================================
-    // Posts Collection
-    // =============================================
     match /posts/{postId} {
-      allow read: if true; // All posts are public
+      allow read: if isSignedIn();
 
-      allow create: if isAuthenticated()
-                    && isOwner(getIncomingData().userId) // userId in post must be the creator's UID
-                    && getIncomingData().title is string && getIncomingData().title.size() >= 5 && getIncomingData().title.size() <= 100
-                    && getIncomingData().caption is string && getIncomingData().caption.size() >= 10 && getIncomingData().caption.size() <= 1000
-                    && getIncomingData().coordinates.latitude is number
-                    && getIncomingData().coordinates.longitude is number
-                    && (!('locationLabel' in getIncomingData()) || (getIncomingData().locationLabel is string && getIncomingData().locationLabel.size() <= 100))
-                    && getIncomingData().category is string && ['hiking', 'city', 'beach', 'food', 'culture', 'nature', 'other'].hasAny([getIncomingData().category])
-                    && getIncomingData().images is list
-                    && getIncomingData().createdAt == request.time
-                    && getIncomingData().likes is list && getIncomingData().likes.size() == 0
-                    && (!('savedBy' in getIncomingData()) || (getIncomingData().savedBy is list && getIncomingData().savedBy.size() == 0))
-                    && getIncomingData().commentCount == 0;
+      allow create: if isSignedIn() &&
+                      request.resource.data.userId == request.auth.uid &&
+                      isValidPostData(request.resource.data);
 
-      allow update: if isAuthenticated() {
-                      // Case 1: Owner updates their own post content.
-                      // Owner can modify content fields but not critical metadata like userId or createdAt.
-                      if (isOwner(getExistingData().userId) &&
-                          getIncomingData().userId == getExistingData().userId &&
-                          getIncomingData().createdAt.toMillis() == getExistingData().createdAt.toMillis() && // Timestamps need careful comparison
-                          // Allow updates to specific content fields by owner
-                          // Ensure only these fields (plus likes/savedBy if owner is also liking/saving) are being changed
-                          getIncomingData().diff(getExistingData()).affectedKeys().hasOnly(
-                            ['title', 'caption', 'images', 'category', 'locationLabel', 'coordinates', 'likes', 'savedBy']
-                          ) &&
-                          // Validate incoming data types for owner updates
-                          getIncomingData().title is string && getIncomingData().title.size() >= 5 && getIncomingData().title.size() <= 100 &&
-                          getIncomingData().caption is string && getIncomingData().caption.size() >= 10 && getIncomingData().caption.size() <= 1000 &&
-                          getIncomingData().images is list &&
-                          getIncomingData().category is string &&
-                          (!('locationLabel' in getIncomingData()) || getIncomingData().locationLabel is string) &&
-                          getIncomingData().coordinates.latitude is number && getIncomingData().coordinates.longitude is number
-                      ) {
-                        allow write;
-                      }
+      // Owner can update their post content
+      allow update: if isSignedIn() &&
+                      request.auth.uid == resource.data.userId &&
+                      isUpdatingAllowedPostContentFields(request.resource.data, resource.data);
 
-                      // Case 2: Any authenticated user likes/unlikes or saves/unsaves a post.
-                      // Ensure no other fields are being changed by non-owners.
-                      if (getIncomingData().userId == getExistingData().userId &&
-                          getIncomingData().title == getExistingData().title &&
-                          getIncomingData().caption == getExistingData().caption &&
-                          getIncomingData().images == getExistingData().images && // Direct array comparison is tricky, better to check affectedKeys
-                          getIncomingData().category == getExistingData().category &&
-                          getIncomingData().coordinates.latitude == getExistingData().coordinates.latitude &&
-                          getIncomingData().coordinates.longitude == getExistingData().coordinates.longitude &&
-                          getIncomingData().createdAt.toMillis() == getExistingData().createdAt.toMillis() &&
-                          getIncomingData().commentCount == getExistingData().commentCount &&
-                          ((!('locationLabel' in getExistingData()) && !('locationLabel' in getIncomingData())) || getIncomingData().locationLabel == getExistingData().locationLabel)
-                        ) {
-                          // Allow modification of 'likes' array if only adding/removing own UID
-                          if (getIncomingData().diff(getExistingData()).affectedKeys().hasOnly(['likes'])) {
-                            let oldLikesSet = getExistingData().likes.toSet();
-                            let newLikesSet = getIncomingData().likes.toSet();
-                            // Allow if adding own UID or removing own UID, and no other UIDs are affected
-                            if ((newLikesSet.difference(oldLikesSet).hasOnly([request.auth.uid]) && newLikesSet.size() == oldLikesSet.size() + 1) ||
-                                (oldLikesSet.difference(newLikesSet).hasOnly([request.auth.uid]) && oldLikesSet.size() == newLikesSet.size() + 1)) {
-                              allow write;
-                            }
-                          }
-                          // Allow modification of 'savedBy' array if only adding/removing own UID
-                          if (getIncomingData().diff(getExistingData()).affectedKeys().hasOnly(['savedBy'])) {
-                            let oldSavedBySet = getExistingData().savedBy.toSet();
-                            let newSavedBySet = getIncomingData().savedBy.toSet();
-                            if ((newSavedBySet.difference(oldSavedBySet).hasOnly([request.auth.uid]) && newSavedBySet.size() == oldSavedBySet.size() + 1) ||
-                                (oldSavedBySet.difference(newSavedBySet).hasOnly([request.auth.uid]) && oldSavedBySet.size() == newSavedBySet.size() + 1)) {
-                              allow write;
-                            }
-                          }
-                      }
-                    };
+      // Any signed-in user can like/save (this rule is ORed with the one above for updates)
+      allow update: if isSignedIn() &&
+                      isUpdatingLikesOrSavesOnly(request.resource.data, resource.data, request.auth.uid);
 
-      allow delete: if isAuthenticated() && isOwner(getExistingData().userId);
+      allow delete: if isSignedIn() && isOwner(resource.data.userId);
     }
 
-    // =============================================
-    // Swipes Collection
-    // =============================================
-    match /swipes/{swipeId} {
-      // User can read their own swipe history for client-side filtering (e.g., not showing already swiped users).
-      allow read: if isAuthenticated() && isOwner(getExistingData().swiperId);
-      allow list: if isAuthenticated() && request.query.resource.data.swiperId == request.auth.uid; // Allow listing own swipes
-
-      allow create: if isAuthenticated()
-                    && isOwner(getIncomingData().swiperId) // Swiper must be the authenticated user
-                    && getIncomingData().swipedUserId is string
-                    && getIncomingData().swipedUserId != request.auth.uid // Cannot swipe self
-                    && (getIncomingData().action == 'like' || getIncomingData().action == 'skip')
-                    && getIncomingData().timestamp == request.time;
-
-      allow update: if false; // Swipes are immutable
-      allow delete: if false; // Swipes are immutable
-    }
-
-    // =============================================
-    // Matches Collection
-    // =============================================
     match /matches/{matchId} {
-      // User can read matches they are part of.
-      allow read: if isAuthenticated() && request.auth.uid in getExistingData().users;
-      allow list: if isAuthenticated() && request.auth.uid in request.query.resource.data.users; // Allow listing own matches
-
-      // Matches are typically created by a trusted server process (e.g., Cloud Function)
-      // after verifying mutual likes. Client-side creation needs careful validation.
-      // This rule assumes client might initiate match creation if logic is simple.
-      allow create: if isAuthenticated()
-                    && request.auth.uid in getIncomingData().users // Creator must be in the match
-                    && getIncomingData().users is list && getIncomingData().users.size() == 2
-                    // Ensure UIDs are sorted for consistent matchId
-                    && getIncomingData().users[0] < getIncomingData().users[1]
-                    && matchId == getIncomingData().users[0] + '_' + getIncomingData().users[1] // Validate matchId format
-                    && getIncomingData().timestamp == request.time
-                    && (!('chatId' in getIncomingData()) || getIncomingData().chatId is string); // Optional chatId
-
-      allow update: if false; // Matches are generally immutable regarding users array. ChatId could be updatable.
-      allow delete: if false;
+      allow read: if isSignedIn() && request.auth.uid in resource.data.users;
+      allow create: if isSignedIn() &&
+                       (request.resource.data.users[0] == request.auth.uid || request.resource.data.users[1] == request.auth.uid) &&
+                       request.resource.data.users.size() == 2 &&
+                       request.resource.data.users[0] < request.resource.data.users[1] && // Ensures consistent ID and prevents self-match in array
+                       request.resource.data.users[0] != request.resource.data.users[1] &&
+                       !exists(/databases/$(database)/documents/matches/$(getMatchDocId(request.resource.data.users[0], request.resource.data.users[1]))) &&
+                       request.resource.data.timestamp == request.time;
+      allow update, delete: if false; // Matches are immutable
     }
+
+    match /swipes/{swipeId} {
+      allow read: if false; // Swipes are not meant to be read directly by clients
+      allow create: if isSignedIn() && isValidSwipeData(request.resource.data);
+      allow update, delete: if false; // Swipes are immutable
+    }
+
+    // Example for a potential 'chats' collection if you add direct messaging
+    // match /chats/{chatId} {
+    //   allow read, write: if isSignedIn() && request.auth.uid in resource.data.participants;
+    //   match /messages/{messageId} {
+    //     allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    //     allow create: if isSignedIn() && request.auth.uid == request.resource.data.senderId &&
+    //                     request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    //   }
+    // }
   }
 }
 

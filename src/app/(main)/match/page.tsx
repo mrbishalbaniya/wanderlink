@@ -191,7 +191,7 @@ export default function MatchPage() {
             <TinderCard
               ref={childRefs[index]}
               className="absolute"
-              key={profile.uid + '-' + index} 
+              key={profile.uid} 
               onSwipe={(dir) => swiped(dir as SwipeAction, profile, index)}
               preventSwipe={['up', 'down']}
             >
