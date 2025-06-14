@@ -158,7 +158,7 @@ export default function HomePage() {
             <ScrollArea className="h-full">
               <SheetHeader className="p-6 pb-2 sr-only">
                 <SheetTitle className="sr-only">{selectedPost.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {selectedPost.caption.substring(0,100)}</SheetDescription>
+                <SheetDescription className="sr-only">Detailed view of: {selectedPost.caption ? selectedPost.caption.substring(0,100) : ''}</SheetDescription>
               </SheetHeader>
               <div className="p-1">
                 <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} />
