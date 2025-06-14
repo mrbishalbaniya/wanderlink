@@ -4,37 +4,200 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default: Deny all reads and writes if no more specific rules match
-    // match /{document=**} {
-    //   allow read, write: if false;
-    // }
-
-    // Rules for 'users' collection
-    match /users/{userId} {
-      // Anyone can create a user document (signup)
-      allow create: if true;
-      // Only the authenticated user can read their own document
-      allow read: if request.auth != null && request.auth.uid == userId;
-      // Only the authenticated user can update their own document
-      allow update: if request.auth != null && request.auth.uid == userId;
-      // Deleting user documents is typically restricted
-      allow delete: if false; // Or implement admin-only deletion
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Rules for 'posts' collection
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getIncomingData() {
+      return request.resource.data;
+    }
+
+    function getExistingData() {
+      return resource.data;
+    }
+
+    // =============================================
+    // Users Collection (profiles)
+    // =============================================
+    match /users/{userId} {
+      // Allow any authenticated user to fetch specific user profiles (needed for posts, matches, etc.)
+      // Be mindful of what data is in a user profile if all fields are readable like this.
+      // For stricter control, you might list readable fields or use subcollections for private data.
+      allow get: if isAuthenticated();
+
+      // Allow a user to read all fields of their own profile.
+      allow read: if isAuthenticated() && isOwner(userId);
+
+      // Allow list operations only under specific conditions (e.g., for admin roles, not covered here)
+      // For general client use, listing all users is usually not allowed or needed.
+      allow list: if false; // Adjust if specific admin/listing features are needed with auth checks
+
+      allow create: if isAuthenticated() && isOwner(userId)
+                    && getIncomingData().uid == userId
+                    && getIncomingData().email == request.auth.email // Email must match token
+                    && getIncomingData().name is string && getIncomingData().name.size() > 0
+                    && getIncomingData().avatar is string
+                    && getIncomingData().joinedAt == request.time
+                    // Ensure only specific fields can be set on creation
+                    && getIncomingData().keys().hasOnly([
+                         'uid', 'email', 'name', 'avatar', 'joinedAt', 'profileCompletionScore',
+                         // Optional fields that can be set during creation (or have defaults)
+                         // Add other fields from UserProfile that are okay to be set at creation
+                         // Ensure sensitive fields like 'isIdVerified' are handled correctly
+                         'username', 'dateOfBirth', 'gender', 'interestedIn', 'bio',
+                         'phoneNumber', 'socialMediaLinks', 'travelStyles', 'favoriteDestinations',
+                         'bucketList', 'preferredTransportModes', 'travelFrequency',
+                         'travelAvailability', 'travelBudgetRange', 'interests', 'languagesSpoken',
+                         'musicPreferences', 'moviePreferences', 'bookPreferences',
+                         'currentLocation', 'willingToTravelTo', 'maxTravelDistance',
+                         'matchPreferences', 'idVerificationImageUrl', 'emergencyContact'
+                       ])
+                    && (!('isIdVerified' in getIncomingData()) || getIncomingData().isIdVerified == false) // User cannot self-verify on create
+                    && (!('profileCompletionScore' in getIncomingData()) || getIncomingData().profileCompletionScore is number);
+
+
+      allow update: if isAuthenticated() && isOwner(userId)
+                    // Fields that cannot be changed by the user after creation
+                    && getIncomingData().uid == getExistingData().uid
+                    && getIncomingData().email == getExistingData().email
+                    && getIncomingData().joinedAt == getExistingData().joinedAt
+                    // User cannot change their own verification status
+                    && (!('isIdVerified' in getIncomingData()) || getIncomingData().isIdVerified == getExistingData().isIdVerified)
+                    // Allow profileCompletionScore to be updated
+                    && (getIncomingData().profileCompletionScore is number || !('profileCompletionScore' in getIncomingData()) || getIncomingData().profileCompletionScore == getExistingData().profileCompletionScore);
+
+
+      allow delete: if false; // Generally, users don't delete their own accounts directly via client SDK.
+    }
+
+    // =============================================
+    // Posts Collection
+    // =============================================
     match /posts/{postId} {
-      // Anyone can read posts
-      allow read: if true;
-      // Authenticated users can create posts, ensuring they set their own userId
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      // Authenticated users can update posts:
-      // - The author can update any field of their own post.
-      // - Any authenticated user can update ONLY the 'likes' field.
-      allow update: if request.auth != null &&
-                       ( (request.auth.uid == resource.data.userId) ||
-                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])) );
-      // Only the author can delete their post
-      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if true; // All posts are public
+
+      allow create: if isAuthenticated()
+                    && isOwner(getIncomingData().userId) // userId in post must be the creator's UID
+                    && getIncomingData().title is string && getIncomingData().title.size() >= 5 && getIncomingData().title.size() <= 100
+                    && getIncomingData().caption is string && getIncomingData().caption.size() >= 10 && getIncomingData().caption.size() <= 1000
+                    && getIncomingData().coordinates.latitude is number
+                    && getIncomingData().coordinates.longitude is number
+                    && (!('locationLabel' in getIncomingData()) || (getIncomingData().locationLabel is string && getIncomingData().locationLabel.size() <= 100))
+                    && getIncomingData().category is string && ['hiking', 'city', 'beach', 'food', 'culture', 'nature', 'other'].hasAny([getIncomingData().category])
+                    && getIncomingData().images is list
+                    && getIncomingData().createdAt == request.time
+                    && getIncomingData().likes is list && getIncomingData().likes.size() == 0
+                    && (!('savedBy' in getIncomingData()) || (getIncomingData().savedBy is list && getIncomingData().savedBy.size() == 0))
+                    && getIncomingData().commentCount == 0;
+
+      allow update: if isAuthenticated() {
+                      // Case 1: Owner updates their own post content.
+                      // Owner can modify content fields but not critical metadata like userId or createdAt.
+                      if (isOwner(getExistingData().userId) &&
+                          getIncomingData().userId == getExistingData().userId &&
+                          getIncomingData().createdAt.toMillis() == getExistingData().createdAt.toMillis() && // Timestamps need careful comparison
+                          // Allow updates to specific content fields by owner
+                          // Ensure only these fields (plus likes/savedBy if owner is also liking/saving) are being changed
+                          getIncomingData().diff(getExistingData()).affectedKeys().hasOnly(
+                            ['title', 'caption', 'images', 'category', 'locationLabel', 'coordinates', 'likes', 'savedBy']
+                          ) &&
+                          // Validate incoming data types for owner updates
+                          getIncomingData().title is string && getIncomingData().title.size() >= 5 && getIncomingData().title.size() <= 100 &&
+                          getIncomingData().caption is string && getIncomingData().caption.size() >= 10 && getIncomingData().caption.size() <= 1000 &&
+                          getIncomingData().images is list &&
+                          getIncomingData().category is string &&
+                          (!('locationLabel' in getIncomingData()) || getIncomingData().locationLabel is string) &&
+                          getIncomingData().coordinates.latitude is number && getIncomingData().coordinates.longitude is number
+                      ) {
+                        allow write;
+                      }
+
+                      // Case 2: Any authenticated user likes/unlikes or saves/unsaves a post.
+                      // Ensure no other fields are being changed by non-owners.
+                      if (getIncomingData().userId == getExistingData().userId &&
+                          getIncomingData().title == getExistingData().title &&
+                          getIncomingData().caption == getExistingData().caption &&
+                          getIncomingData().images == getExistingData().images && // Direct array comparison is tricky, better to check affectedKeys
+                          getIncomingData().category == getExistingData().category &&
+                          getIncomingData().coordinates.latitude == getExistingData().coordinates.latitude &&
+                          getIncomingData().coordinates.longitude == getExistingData().coordinates.longitude &&
+                          getIncomingData().createdAt.toMillis() == getExistingData().createdAt.toMillis() &&
+                          getIncomingData().commentCount == getExistingData().commentCount &&
+                          ((!('locationLabel' in getExistingData()) && !('locationLabel' in getIncomingData())) || getIncomingData().locationLabel == getExistingData().locationLabel)
+                        ) {
+                          // Allow modification of 'likes' array if only adding/removing own UID
+                          if (getIncomingData().diff(getExistingData()).affectedKeys().hasOnly(['likes'])) {
+                            let oldLikesSet = getExistingData().likes.toSet();
+                            let newLikesSet = getIncomingData().likes.toSet();
+                            // Allow if adding own UID or removing own UID, and no other UIDs are affected
+                            if ((newLikesSet.difference(oldLikesSet).hasOnly([request.auth.uid]) && newLikesSet.size() == oldLikesSet.size() + 1) ||
+                                (oldLikesSet.difference(newLikesSet).hasOnly([request.auth.uid]) && oldLikesSet.size() == newLikesSet.size() + 1)) {
+                              allow write;
+                            }
+                          }
+                          // Allow modification of 'savedBy' array if only adding/removing own UID
+                          if (getIncomingData().diff(getExistingData()).affectedKeys().hasOnly(['savedBy'])) {
+                            let oldSavedBySet = getExistingData().savedBy.toSet();
+                            let newSavedBySet = getIncomingData().savedBy.toSet();
+                            if ((newSavedBySet.difference(oldSavedBySet).hasOnly([request.auth.uid]) && newSavedBySet.size() == oldSavedBySet.size() + 1) ||
+                                (oldSavedBySet.difference(newSavedBySet).hasOnly([request.auth.uid]) && oldSavedBySet.size() == newSavedBySet.size() + 1)) {
+                              allow write;
+                            }
+                          }
+                      }
+                    };
+
+      allow delete: if isAuthenticated() && isOwner(getExistingData().userId);
+    }
+
+    // =============================================
+    // Swipes Collection
+    // =============================================
+    match /swipes/{swipeId} {
+      // User can read their own swipe history for client-side filtering (e.g., not showing already swiped users).
+      allow read: if isAuthenticated() && isOwner(getExistingData().swiperId);
+      allow list: if isAuthenticated() && request.query.resource.data.swiperId == request.auth.uid; // Allow listing own swipes
+
+      allow create: if isAuthenticated()
+                    && isOwner(getIncomingData().swiperId) // Swiper must be the authenticated user
+                    && getIncomingData().swipedUserId is string
+                    && getIncomingData().swipedUserId != request.auth.uid // Cannot swipe self
+                    && (getIncomingData().action == 'like' || getIncomingData().action == 'skip')
+                    && getIncomingData().timestamp == request.time;
+
+      allow update: if false; // Swipes are immutable
+      allow delete: if false; // Swipes are immutable
+    }
+
+    // =============================================
+    // Matches Collection
+    // =============================================
+    match /matches/{matchId} {
+      // User can read matches they are part of.
+      allow read: if isAuthenticated() && request.auth.uid in getExistingData().users;
+      allow list: if isAuthenticated() && request.auth.uid in request.query.resource.data.users; // Allow listing own matches
+
+      // Matches are typically created by a trusted server process (e.g., Cloud Function)
+      // after verifying mutual likes. Client-side creation needs careful validation.
+      // This rule assumes client might initiate match creation if logic is simple.
+      allow create: if isAuthenticated()
+                    && request.auth.uid in getIncomingData().users // Creator must be in the match
+                    && getIncomingData().users is list && getIncomingData().users.size() == 2
+                    // Ensure UIDs are sorted for consistent matchId
+                    && getIncomingData().users[0] < getIncomingData().users[1]
+                    && matchId == getIncomingData().users[0] + '_' + getIncomingData().users[1] // Validate matchId format
+                    && getIncomingData().timestamp == request.time
+                    && (!('chatId' in getIncomingData()) || getIncomingData().chatId is string); // Optional chatId
+
+      allow update: if false; // Matches are generally immutable regarding users array. ChatId could be updatable.
+      allow delete: if false;
     }
   }
 }
+
+    
