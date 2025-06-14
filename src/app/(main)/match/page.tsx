@@ -82,9 +82,9 @@ export default function MatchPage() {
     setSearchRadiusKm(newRadius[0]);
   };
   
-  const handleRadiusChangeCommit = () => {
+  const handleRadiusChangeCommit = useCallback(() => {
       fetchProfiles(true); // Treat as initial load for the new radius
-  };
+  }, [fetchProfiles]);
 
   const swiped = async (direction: SwipeAction, swipedProfile: UserProfile, index: number) => {
     if (!currentUser) return;
@@ -152,7 +152,7 @@ export default function MatchPage() {
             step={10}
             value={[searchRadiusKm]}
             onValueChange={handleRadiusChange}
-            onValueChangeCommit={handleRadiusChangeCommit}
+            onValueCommit={handleRadiusChangeCommit}
             disabled={!hasCurrentUserLocation || isLoading}
             className="my-2"
           />
