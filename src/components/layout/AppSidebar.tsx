@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Compass, MessageSquare, Users, User, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe, CalendarClock } from 'lucide-react';
+import { Compass, MessageSquare, Users, Settings, LogOut, MapPin, Edit, HeartHandshake, Globe, CalendarClock, User as UserIcon } from 'lucide-react'; // Added UserIcon
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggleButton } from './ThemeToggleButton'; // Import ThemeToggleButton
 import { cn } from '@/lib/utils'; 
 
 const navItems = [
@@ -35,7 +36,7 @@ const navItems = [
   { href: '/match', label: 'Match', icon: HeartHandshake },
   { href: '/chat', label: 'Messages', icon: MessageSquare },
   { href: '/friends', label: 'Friends', icon: Users }, 
-  { href: '/profile', label: 'Profile', icon: User },
+  // Profile link removed from here
 ];
 
 export default function AppSidebar() {
@@ -56,7 +57,7 @@ export default function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="glassmorphic-sidebar border-r border-sidebar-border shadow-md">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <Link href="/" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}> {/* Default to / */}
+        <Link href="/" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}>
           <MapPin className="h-7 w-7 text-primary" />
           <span className={cn(
             "font-headline text-xl font-bold text-primary",
@@ -109,9 +110,11 @@ export default function AppSidebar() {
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => { router.push('/profile'); setOpenMobile(false); }}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  <span>Edit Profile</span>
+                  <UserIcon className="mr-2 h-4 w-4" /> {/* Changed icon to UserIcon */}
+                  <span>Profile</span>
                 </DropdownMenuItem>
+                <ThemeToggleButton /> {/* Added ThemeToggleButton here */}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
