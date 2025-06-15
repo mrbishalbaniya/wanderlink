@@ -14,7 +14,6 @@ import { arrayRemove, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
-// import Link from 'next/link'; // Keep Link for actual navigation later
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +26,7 @@ interface PostCardProps {
   post: Post;
   onLikeUpdate?: (postId: string, newLikes: string[]) => void;
   onSaveUpdate?: (postId: string, newSavedBy: string[]) => void;
-  onPostClickForDialog?: (post: Post) => void;
+  onPostClickForDialog?: (post: Post) => void; // Made optional
   isDetailedView?: boolean; 
 }
 
@@ -118,12 +117,16 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     if (onPostClickForDialog) { 
       onPostClickForDialog(post);
     } else if (isDetailedView) { 
+      // This case is when the card is ALREADY in a dialog (e.g., on Map page)
+      // and we want to focus the comment input.
       const commentInputId = `comment-input-${post.id}` || `comment-input-map-${post.id}`;
       document.getElementById(commentInputId)?.focus();
     }
+    // If onPostClickForDialog is not provided and not isDetailedView, clicking comment icon does nothing.
   };
-
+  
   const handleShare = (platform: 'twitter' | 'facebook' | 'whatsapp' | 'linkedin' | 'copy' | 'gmaps') => {
+    e.stopPropagation(); // Prevent card click if dropdown is used
     const postUrl = `${window.location.origin}/?postId=${post.id}`; 
     const postTitle = post.title;
     const postCaptionSummary = post.caption.substring(0, 100) + (post.caption.length > 100 ? '...' : '');
@@ -174,6 +177,8 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   
   const handleAuthorProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // For now, just a toast. Later, this could navigate to a user profile page.
+    // Example: router.push(`/profile/${post.user?.uid || post.userId}`);
     toast({
       title: "Profile Navigation (Placeholder)", 
       description: `Would navigate to ${userUsername}'s profile. This feature is not yet implemented.`,
@@ -182,9 +187,13 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   };
 
   const toggleCaption = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent dialog from opening if card has a main click handler
     setShowFullCaption(prev => !prev);
   };
+
+  const displayedCaption = showFullCaption || isDetailedView || !captionIsLong 
+    ? post.caption 
+    : `${post.caption.substring(0, CAPTION_TRUNCATE_LENGTH)}...`;
 
   return (
     <Card className="w-full overflow-hidden glassmorphic-card shadow-lg rounded-xl" role={!isDetailedView ? "article" : undefined} tabIndex={!isDetailedView ? -1 : undefined}>
@@ -232,7 +241,11 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
          <Carousel className="w-full" opts={{ loop: post.images.length > 1 }}>
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
-              <CarouselItem key={index} onClick={!isDetailedView && onPostClickForDialog ? (e) => { e.stopPropagation(); onPostClickForDialog(post); } : undefined} className={!isDetailedView && onPostClickForDialog ? "cursor-pointer" : ""}>
+              <CarouselItem 
+                key={index} 
+                onClick={!isDetailedView && onPostClickForDialog ? (e) => { e.stopPropagation(); onPostClickForDialog(post); } : undefined} 
+                className={!isDetailedView && onPostClickForDialog ? "cursor-pointer" : ""}
+              >
                 <div className="relative aspect-square w-full">
                   <Image 
                     src={imgUrl} 
@@ -249,8 +262,8 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
           </CarouselContent>
           {post.images.length > 1 && (
             <>
-              <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white h-7 w-7 md:h-8 md:w-8" />
-              <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white h-7 w-7 md:h-8 md:w-8" />
+              <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white h-7 w-7 md:h-8 md:w-8" onClick={(e) => e.stopPropagation()}/>
+              <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white h-7 w-7 md:h-8 md:w-8" onClick={(e) => e.stopPropagation()}/>
             </>
           )}
         </Carousel>
@@ -319,17 +332,15 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
           <span className="font-semibold cursor-pointer hover:underline" onClick={handleAuthorProfileClick}>
             {userUsername}
           </span>
-          <span className="ml-1">
-            {showFullCaption || isDetailedView || !captionIsLong ? post.caption : `${post.caption.substring(0, CAPTION_TRUNCATE_LENGTH)}`}
-          </span>
+          <span className="ml-1 whitespace-pre-line">{displayedCaption}</span>
           {!isDetailedView && captionIsLong && (
             <button onClick={toggleCaption} className="caption-toggle text-muted-foreground hover:text-foreground text-xs ml-1 font-medium whitespace-nowrap">
-              {showFullCaption ? ' Read less' : '...Read more'}
+              {showFullCaption ? ' Read less' : '' /* '...Read more' is part of displayedCaption now */}
             </button>
           )}
         </div>
 
-        {!isDetailedView && (
+        {!isDetailedView && onPostClickForDialog && (
           <p onClick={handleCommentClick} className="text-sm text-muted-foreground cursor-pointer hover:underline">
             {commentCount > 0 ? `View all ${commentCount} comments` : 'Add a comment...'}
           </p>
@@ -340,4 +351,3 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     </Card>
   );
 }
-

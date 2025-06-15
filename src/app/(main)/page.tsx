@@ -3,44 +3,20 @@
 
 import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
-import type { Post, UserProfile, Comment as CommentType, UserProfileLite } from '@/types';
-import { collection, onSnapshot, orderBy, query, doc, getDoc, Timestamp, getDocs, limit, addDoc, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
+import type { Post, UserProfile, Comment as CommentType } from '@/types';
+import { collection, onSnapshot, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Compass, PlusCircle, MessageSquare } from 'lucide-react';
+import { Loader2, Compass, PlusCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
-import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 
 export default function HomePage() { 
-  const { currentUser, userProfile: currentUserProfile } = useAuth();
-  const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [selectedPostComments, setSelectedPostComments] = useState<CommentType[]>([]);
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
-  const [newCommentText, setNewCommentText] = useState('');
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const postIdFromQuery = searchParams.get('postId');
-
   useEffect(() => {
     setLoading(true);
     const postsCollection = collection(db, 'posts');
@@ -131,78 +107,6 @@ export default function HomePage() {
     return () => unsubscribe(); 
   }, []);
 
-  const fetchCommentsForPost = useCallback(async (postId: string) => {
-    if (!postId) return;
-    setIsLoadingComments(true);
-    setSelectedPostComments([]); 
-    try {
-      const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
-      const q = query(commentsCollectionRef, orderBy('createdAt', 'desc'), limit(20));
-      const commentsSnapshot = await getDocs(q);
-      
-      const commentsDataPromises = commentsSnapshot.docs.map(async (commentDoc) => {
-        const data = commentDoc.data();
-        const comment: CommentType = {
-          id: commentDoc.id,
-          postId: postId,
-          userId: data.userId,
-          text: data.text,
-          createdAt: data.createdAt,
-        };
-
-        if (data.createdAt && data.createdAt instanceof Timestamp) {
-          comment.createdAtDate = data.createdAt.toDate();
-        }
-
-        if (data.userId) {
-          try {
-            const userRef = doc(db, 'users', data.userId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-              const userData = userSnap.data();
-              comment.user = {
-                uid: userSnap.id,
-                name: userData.name || 'User',
-                username: userData.username,
-                avatar: userData.avatar || `https://placehold.co/40x40.png?text=${(userData.name || 'U').charAt(0)}`,
-              };
-            } else {
-              console.warn(`User profile for commenter ${data.userId} not found on comment ${comment.id}.`);
-              comment.user = { uid: data.userId, name: 'Unknown User', avatar: `https://placehold.co/40x40.png?text=?` };
-            }
-          } catch (userFetchError) {
-            console.error(`Error fetching profile for commenter ${data.userId} on comment ${comment.id}:`, userFetchError);
-            comment.user = { uid: data.userId, name: 'Error Loading User', avatar: `https://placehold.co/40x40.png?text=E` };
-          }
-        }
-        return comment;
-      });
-      const resolvedComments = (await Promise.all(commentsDataPromises)).filter(c => c !== null) as CommentType[];
-      setSelectedPostComments(resolvedComments);
-    } catch (error) {
-      console.error("Error fetching comments for post:", postId, error);
-      toast({ title: "Error", description: "Could not fetch comments. Please check your connection or try again later.", variant: "destructive" });
-    } finally {
-      setIsLoadingComments(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    if (!loading && posts.length > 0 && postIdFromQuery && !selectedPost) {
-      const postToSelect = posts.find(p => p.id === postIdFromQuery);
-      if (postToSelect) {
-        setSelectedPost(postToSelect);
-        fetchCommentsForPost(postToSelect.id);
-      } else {
-         router.replace(pathname, { scroll: false }); 
-      }
-    }
-  }, [posts, loading, postIdFromQuery, router, pathname, selectedPost, fetchCommentsForPost]); 
-
-  const handlePostClickForDialog = useCallback((post: Post) => {
-    setSelectedPost(post);
-    fetchCommentsForPost(post.id);
-  }, [fetchCommentsForPost]);
 
   const handleLikeUpdateInHome = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
@@ -210,10 +114,7 @@ export default function HomePage() {
         p.id === postId ? { ...p, likes: newLikes } : p
       )
     );
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost(prev => prev ? { ...prev, likes: newLikes } : null);
-    }
-  }, [selectedPost]);
+  }, []);
 
   const handleSaveUpdateInHome = useCallback((postId: string, newSavedBy: string[]) => {
     setPosts(currentPosts =>
@@ -221,91 +122,7 @@ export default function HomePage() {
         p.id === postId ? { ...p, savedBy: newSavedBy } : p
       )
     );
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
-    }
-  }, [selectedPost]);
-
-  const handleDialogOnOpenChange = useCallback((isOpen: boolean) => {
-    if (!isOpen) {
-      setSelectedPost(null);
-      setSelectedPostComments([]);
-      setNewCommentText('');
-      if (postIdFromQuery) {
-          router.replace(pathname, { scroll: false }); 
-      }
-    }
-  }, [postIdFromQuery, router, pathname]);
-
-  const handlePostComment = async () => {
-    if (!currentUser || !currentUserProfile) {
-      toast({ title: "Login Required", description: "Please login to comment.", variant: "destructive" });
-      return;
-    }
-    if (!selectedPost || !newCommentText.trim()) {
-      toast({ title: "Cannot Post", description: "Comment text cannot be empty.", variant: "destructive" });
-      return;
-    }
-    
-    setIsSubmittingComment(true);
-    const commentText = newCommentText.trim();
-
-    try {
-      const postDocRef = doc(db, 'posts', selectedPost.id);
-      const commentsCollectionRef = collection(postDocRef, 'comments');
-
-      const newCommentData = {
-        userId: currentUser.uid,
-        postId: selectedPost.id,
-        text: commentText,
-        createdAt: serverTimestamp(),
-      };
-      
-      const newCommentDocRef = await addDoc(commentsCollectionRef, newCommentData);
-      await updateDoc(postDocRef, { commentCount: increment(1) });
-
-      // Optimistic UI update
-      const optimisticComment: CommentType = {
-        id: newCommentDocRef.id, 
-        ...newCommentData,
-        createdAtDate: new Date(), // Use client date for optimistic update
-        user: {
-          uid: currentUser.uid,
-          name: currentUserProfile.name || 'User',
-          username: currentUserProfile.username,
-          avatar: currentUserProfile.avatar,
-        },
-      };
-
-      setSelectedPostComments(prevComments => [optimisticComment, ...prevComments]);
-      setSelectedPost(prevSelectedPost => prevSelectedPost ? { ...prevSelectedPost, commentCount: (prevSelectedPost.commentCount || 0) + 1 } : null);
-      setPosts(prevPosts => prevPosts.map(p => p.id === selectedPost.id ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
-      
-      setNewCommentText('');
-      toast({ 
-        title: "Comment Posted!", 
-        description: "Your comment has been added.",
-        className: "bg-accent text-accent-foreground"
-      });
-
-    } catch (error: any) {
-      console.error("Error posting comment:", error);
-      toast({ title: "Error", description: `Could not post comment: ${error.message}`, variant: "destructive"});
-    } finally {
-      setIsSubmittingComment(false);
-    }
-  };
-
-  const handleUserProfileClick = (e: React.MouseEvent, userId?: string, username?: string) => {
-    e.stopPropagation();
-    if (!userId) return;
-    console.log(`Navigate to profile of user ID: ${userId}, Username: ${username || 'N/A'}`);
-    toast({
-      title: "Profile Navigation (Placeholder)", 
-      description: `Would navigate to ${username || userId}'s profile. This feature is not yet implemented.`,
-      className: "bg-primary text-primary-foreground"
-    });
-  };
+  }, []);
 
 
   if (loading && posts.length === 0) {
@@ -323,12 +140,14 @@ export default function HomePage() {
           <h1 className="text-2xl font-headline text-primary text-center md:text-left">Explore Adventures</h1>
           <p className="text-sm text-muted-foreground text-center md:text-left">Discover new destinations and experiences shared by the community.</p>
         </div>
-        <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <Link href="/create">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create Post
-          </Link>
-        </Button>
+        {currentUser && (
+            <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+            <Link href="/create">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create Post
+            </Link>
+            </Button>
+        )}
       </div>
 
       <ScrollArea className="flex-1">
@@ -337,9 +156,11 @@ export default function HomePage() {
             <Compass size={64} className="mx-auto text-muted-foreground/50 mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">Nothing to explore yet!</h2>
             <p className="text-muted-foreground mb-6">Be the first to share an adventure, or check back soon.</p>
-            <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Link href="/create">Share Your Adventure</Link>
-            </Button>
+            {currentUser && (
+                <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                <Link href="/create">Share Your Adventure</Link>
+                </Button>
+            )}
           </div>
         ) : (
           <div className="max-w-xl mx-auto space-y-8 pb-8">
@@ -348,103 +169,13 @@ export default function HomePage() {
                 key={post.id} 
                 post={post} 
                 onLikeUpdate={handleLikeUpdateInHome} 
-                onSaveUpdate={handleSaveUpdateInHome} 
-                onPostClickForDialog={handlePostClickForDialog}
+                onSaveUpdate={handleSaveUpdateInHome}
+                // No onPostClickForDialog passed from Home page
               />
             ))}
           </div>
         )}
       </ScrollArea>
-      
-      <Dialog 
-        open={!!selectedPost} 
-        onOpenChange={handleDialogOnOpenChange}
-      >
-        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden">
-          {selectedPost && (
-            <>
-              <DialogHeader className="p-4 pb-2 border-b border-border/30">
-                <DialogTitle className="text-lg font-semibold text-center">{selectedPost.title}</DialogTitle>
-                {selectedPost.user && (
-                     <DialogDescription className="text-xs text-muted-foreground text-center">
-                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(e, selectedPost.user?.uid, selectedPost.user?.username)}>{selectedPost.user.username || selectedPost.user.name}</span>
-                     </DialogDescription>
-                )}
-              </DialogHeader>
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="p-1"> 
-                  <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} isDetailedView={true}/>
-                </div>
-                <div className="px-4 py-3 border-t border-border/30">
-                  <h3 className="text-md font-semibold mb-3 text-foreground flex items-center">
-                    <MessageSquare className="h-5 w-5 mr-2 text-primary" />
-                    Comments ({selectedPost.commentCount || selectedPostComments?.length || 0})
-                  </h3>
-                  {isLoadingComments ? (
-                    <div className="flex justify-center items-center py-4">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  ) : selectedPostComments.length > 0 ? (
-                    <div className="space-y-3 pr-1"> {/* Removed max-h-60 and overflow-y-auto */}
-                      {selectedPostComments.map(comment => (
-                        <div key={comment.id} className="flex items-start space-x-2.5 text-sm">
-                          <Avatar className="h-7 w-7 cursor-pointer" onClick={(e) => handleUserProfileClick(e, comment.user?.uid, comment.user?.username)}>
-                            <AvatarImage src={comment.user?.avatar} alt={comment.user?.name} data-ai-hint="person avatar"/>
-                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">{comment.user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p>
-                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(e, comment.user?.uid, comment.user?.username)}>
-                                {comment.user?.username || comment.user?.name}
-                              </span>
-                              <span className="text-foreground/90 ml-1.5">{comment.text}</span>
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {comment.createdAtDate ? formatDistanceToNow(comment.createdAtDate, { addSuffix: true }) : 'Replying...'}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-3">No comments yet. Be the first!</p>
-                  )}
-                </div>
-              </ScrollArea>
-              <DialogFooter className="p-4 border-t border-border/30 bg-background/80 backdrop-blur-sm">
-                <div className="flex items-start space-x-2 w-full">
-                  {currentUser && (
-                    <Avatar className="h-8 w-8 mt-1">
-                      <AvatarImage src={currentUserProfile?.avatar || undefined} alt={currentUserProfile?.name || "User"} data-ai-hint="person avatar"/>
-                      <AvatarFallback className="text-sm bg-muted text-muted-foreground">
-                        {(currentUserProfile?.name || currentUser.email || "U").charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <Textarea
-                    id={`comment-input-${selectedPost.id}`}
-                    placeholder="Add a comment..."
-                    value={newCommentText}
-                    onChange={(e) => setNewCommentText(e.target.value)}
-                    rows={1}
-                    className="flex-1 min-h-[40px] max-h-[100px] resize-none text-sm bg-input/70 dark:bg-muted/50"
-                    disabled={!currentUser || isSubmittingComment}
-                  />
-                  <Button onClick={handlePostComment} size="sm" className="h-10" disabled={!currentUser || !newCommentText.trim() || isSubmittingComment}>
-                    {isSubmittingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Post'}
-                  </Button>
-                </div>
-                {!currentUser && <p className="text-xs text-muted-foreground text-center w-full pt-1">Please <Link href="/login" className="text-primary hover:underline">login</Link> to comment.</p>}
-              </DialogFooter>
-            </>
-          )}
-           {!selectedPost && ( 
-            <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">No post selected.</p>
-            </div>
-           )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
