@@ -21,7 +21,8 @@ export async function generatePackingList(input: GeneratePackingListInput): Prom
 }
 
 const systemPrompt = `You are an expert AI Packing List Generator. Your task is to create a comprehensive and practical packing list.
-Your response MUST be strictly based on the destination provided: "{{{destination}}}". Do not infer or use information about other similar-sounding or related destinations.
+Your response MUST be strictly based on the EXACT destination provided: "{{{destination}}}".
+Do NOT infer or use information about other similar-sounding or related destinations. ALL items and advice must be relevant for "{{{destination}}}".
 
 User Inputs:
 Destination: {{{destination}}}
@@ -34,8 +35,8 @@ Please generate a categorized packing list for a trip to "{{{destination}}}".
 Common categories include: Clothing, Toiletries, Electronics, Documents, Medication, Gear (if applicable, e.g., for hiking), Miscellaneous.
 Tailor the list specifically to the destination "{{{destination}}}", trip type, duration, and weather.
 The "packingListName" field in the output JSON should be a descriptive name for this packing list, for example: "Packing List for {{{durationDays}}}-Day Trip to {{{destination}}}".
-The "destinationName" field in the output JSON MUST exactly match the input destination string: "{{{destination}}}".
-Optionally, include a few brief additional packing tips.
+The "destinationName" field in the output JSON MUST exactly match the input destination string: "{{{destination}}}". No modifications.
+Optionally, include a few brief additional packing tips specific to "{{{destination}}}".
 Ensure the output strictly adheres to the provided JSON schema.
 `;
 

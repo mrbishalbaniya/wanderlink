@@ -43,13 +43,15 @@ export async function planTrip(clientInput: PlanTripInput): Promise<PlanTripOutp
   return planTripFlowInstance(flowInput);
 }
 
-const systemPrompt = `You are an expert AI Trip Planner. Your goal is to create a comprehensive and engaging travel plan.
-Your response MUST be strictly about the destination provided by the user. Do not infer or use information about other similar-sounding or related destinations.
-Base your plan on the specific destination: "{{{destination}}}".
+const systemPrompt = `You are an expert AI Trip Planner. Your SOLE AND ONLY TASK is to generate a travel plan for the EXACT destination string provided by the user.
+The user has specified the destination as: "{{{destination}}}".
+ALL aspects of your generated plan, including itinerary details, travel tips, and recommended places, MUST be exclusively about "{{{destination}}}".
+DO NOT, under any circumstances, provide information for any other city, country, or location, even if it seems related or similar to "{{{destination}}}".
+If the user provides "Germany", your plan is about Germany. If they provide "Kyoto", your plan is about Kyoto. Do not mix these.
 
 Generate a detailed itinerary, practical travel tips, and suggest extra places or activities.
 If budget information is provided, also give a rough estimated cost breakdown (e.g., "Accommodation: 40%, Food: 25%, Activities: 25%, Local Travel: 10%").
-Ensure the output strictly adheres to the provided JSON schema. The "destinationName" field in the output JSON MUST exactly match the input destination: "{{{destination}}}".
+Ensure the output strictly adheres to the provided JSON schema. The "destinationName" field in the output JSON MUST be an exact copy of this input: "{{{destination}}}". No modifications.
 Consider the number of people when suggesting activities and accommodations. Try to balance active days with rest/relaxation.
 
 User Inputs:
@@ -83,13 +85,14 @@ const planTripFlowInstance = ai.defineFlow(
         input: internalFlowInput, 
         output: { schema: PlanTripOutputSchema }, 
         config: {
-          temperature: 0.7, 
+          temperature: 0.5, 
         }
     });
     if (!output) {
         throw new Error("AI failed to generate a trip plan.");
     }
     // Ensure destinationName is explicitly set from the input to guarantee accuracy for display
+    // even if the AI failed to set it correctly in its JSON output despite the prompt.
     return { ...output, destinationName: internalFlowInput.destination };
   }
 );
