@@ -5,7 +5,7 @@ import InteractiveMap from '@/components/map/InteractiveMap';
 import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
 import type { Post, UserProfile, Comment as CommentType, UserProfileLite } from '@/types';
-import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp, limit } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp, limit, addDoc, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Loader2, Globe, MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,7 +30,7 @@ import Link from 'next/link';
 
 
 export default function MapPage() {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile: currentUserProfile } = useAuth();
   const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,7 @@ export default function MapPage() {
   const [selectedPostComments, setSelectedPostComments] = useState<CommentType[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const mapRefForPopupClose = useRef<LeafletMap | null>(null);
   
   const router = useRouter();
@@ -169,7 +170,7 @@ export default function MapPage() {
         }
         return comment;
       });
-      const resolvedComments = await Promise.all(commentsDataPromises);
+      const resolvedComments = (await Promise.all(commentsDataPromises)).filter(c => c !== null) as CommentType[];
       setSelectedPostComments(resolvedComments);
     } catch (error) {
       console.error("Error fetching comments for map post:", error);
@@ -228,7 +229,7 @@ export default function MapPage() {
   }, []);
 
   const handlePostCommentOnMap = async () => {
-    if (!currentUser) {
+    if (!currentUser || !currentUserProfile) {
       toast({ title: "Login Required", description: "Please login to comment.", variant: "destructive" });
       return;
     }
@@ -236,16 +237,56 @@ export default function MapPage() {
       toast({ title: "Cannot Post", description: "Comment text cannot be empty.", variant: "destructive" });
       return;
     }
-    console.log(`Posting comment by ${currentUser.uid} on post ${selectedPostForDialog.id}: ${newCommentText}`);
-    toast({ 
-      title: "Comment Submitted (Placeholder)", 
-      description: "This is a placeholder. Comment saving is not yet implemented.",
-      className: "bg-primary text-primary-foreground"
-    });
-    setNewCommentText('');
+    
+    setIsSubmittingComment(true);
+    const commentText = newCommentText.trim();
+    
+    try {
+      const postDocRef = doc(db, 'posts', selectedPostForDialog.id);
+      const commentsCollectionRef = collection(postDocRef, 'comments');
+
+      const newCommentData = {
+        userId: currentUser.uid,
+        postId: selectedPostForDialog.id,
+        text: commentText,
+        createdAt: serverTimestamp(),
+      };
+      
+      const newCommentDocRef = await addDoc(commentsCollectionRef, newCommentData);
+      await updateDoc(postDocRef, { commentCount: increment(1) });
+
+      const optimisticComment: CommentType = {
+        id: newCommentDocRef.id,
+        ...newCommentData,
+        createdAtDate: new Date(),
+        user: {
+          uid: currentUser.uid,
+          name: currentUserProfile.name || 'User',
+          username: currentUserProfile.username,
+          avatar: currentUserProfile.avatar,
+        },
+      };
+
+      setSelectedPostComments(prevComments => [optimisticComment, ...prevComments]);
+      setSelectedPostForDialog(prevSelectedPost => prevSelectedPost ? { ...prevSelectedPost, commentCount: (prevSelectedPost.commentCount || 0) + 1 } : null);
+      setPosts(prevPosts => prevPosts.map(p => p.id === selectedPostForDialog.id ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
+      
+      setNewCommentText('');
+      toast({ 
+        title: "Comment Posted!", 
+        description: "Your comment has been added.",
+        className: "bg-accent text-accent-foreground"
+      });
+
+    } catch (error: any) {
+      console.error("Error posting comment on map page:", error);
+      toast({ title: "Error", description: `Could not post comment: ${error.message}`, variant: "destructive"});
+    } finally {
+      setIsSubmittingComment(false);
+    }
   };
 
-  const handleUserProfileClick = (userId?: string, username?: string) => {
+  const handleUserProfileClick = (e: React.MouseEvent, userId?: string, username?: string) => {
     e.stopPropagation();
     if (!userId) return;
     console.log(`Navigate to profile of user ID: ${userId}, Username: ${username || 'N/A'}`);
@@ -305,7 +346,7 @@ export default function MapPage() {
                 <DialogTitle className="text-lg font-semibold text-center">{selectedPostForDialog.title}</DialogTitle>
                 {selectedPostForDialog.user && (
                      <DialogDescription className="text-xs text-muted-foreground text-center">
-                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(selectedPostForDialog.user?.uid, selectedPostForDialog.user?.username)}>{selectedPostForDialog.user.username || selectedPostForDialog.user.name}</span>
+                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(e, selectedPostForDialog.user?.uid, selectedPostForDialog.user?.username)}>{selectedPostForDialog.user.username || selectedPostForDialog.user.name}</span>
                      </DialogDescription>
                 )}
               </DialogHeader>
@@ -331,13 +372,13 @@ export default function MapPage() {
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                       {selectedPostComments.map(comment => (
                         <div key={comment.id} className="flex items-start space-x-2.5 text-sm">
-                           <Avatar className="h-7 w-7 cursor-pointer" onClick={(e) => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                           <Avatar className="h-7 w-7 cursor-pointer" onClick={(e) => handleUserProfileClick(e, comment.user?.uid, comment.user?.username)}>
                             <AvatarImage src={comment.user?.avatar} alt={comment.user?.name} data-ai-hint="person avatar"/>
                             <AvatarFallback className="text-xs bg-muted text-muted-foreground">{comment.user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
                           <div>
                             <p>
-                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(e, comment.user?.uid, comment.user?.username)}>
                                 {comment.user?.username || comment.user?.name}
                               </span>
                               <span className="text-foreground/90 ml-1.5">{comment.text}</span>
@@ -358,9 +399,9 @@ export default function MapPage() {
                 <div className="flex items-start space-x-2 w-full">
                  {currentUser && (
                     <Avatar className="h-8 w-8 mt-1">
-                      <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || "User"} data-ai-hint="person avatar"/>
+                      <AvatarImage src={currentUserProfile?.avatar || undefined} alt={currentUserProfile?.name || "User"} data-ai-hint="person avatar"/>
                       <AvatarFallback className="text-sm bg-muted text-muted-foreground">
-                        {(currentUser.displayName || currentUser.email || "U").charAt(0).toUpperCase()}
+                        {(currentUserProfile?.name || currentUser.email || "U").charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   )}
@@ -371,9 +412,11 @@ export default function MapPage() {
                     onChange={(e) => setNewCommentText(e.target.value)}
                     rows={1}
                     className="flex-1 min-h-[40px] max-h-[100px] resize-none text-sm bg-input/70 dark:bg-muted/50"
-                    disabled={!currentUser}
+                    disabled={!currentUser || isSubmittingComment}
                   />
-                  <Button onClick={handlePostCommentOnMap} size="sm" className="h-10" disabled={!currentUser || !newCommentText.trim()}>Post</Button>
+                  <Button onClick={handlePostCommentOnMap} size="sm" className="h-10" disabled={!currentUser || !newCommentText.trim() || isSubmittingComment}>
+                     {isSubmittingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Post'}
+                  </Button>
                 </div>
                  {!currentUser && <p className="text-xs text-muted-foreground text-center w-full pt-1">Please <Link href="/login" className="text-primary hover:underline">login</Link> to comment.</p>}
               </DialogFooter>
@@ -389,4 +432,3 @@ export default function MapPage() {
     </div>
   );
 }
-
