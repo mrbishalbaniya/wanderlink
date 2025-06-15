@@ -303,7 +303,7 @@ export default function HomePage() {
         open={!!selectedPost} 
         onOpenChange={handleDialogOnOpenChange}
       >
-        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden">
           {selectedPost && (
             <>
               <DialogHeader className="p-4 pb-2 border-b border-border/30">

@@ -279,7 +279,7 @@ export default function MapPage() {
         open={!!selectedPostForDialog} 
         onOpenChange={handleDialogOnOpenChange}
       >
-        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh]"> {/* z-50 is default here */}
+        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"> {/* z-50 is default here */}
           {selectedPostForDialog && (
             <>
               <DialogHeader className="p-4 pb-2 border-b border-border/30">
@@ -290,7 +290,7 @@ export default function MapPage() {
                      </DialogDescription>
                 )}
               </DialogHeader>
-              <ScrollArea className="flex-1 min-h-0"> {/* Added min-h-0 */}
+              <ScrollArea className="flex-1 min-h-0"> 
                 <div className="p-1">
                   <PostCard 
                     post={selectedPostForDialog} 
