@@ -9,9 +9,21 @@ interface ItineraryDisplayProps {
 }
 
 export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
+  // Determine the main title based on whether destinationName is present and different from tripTitle
+  const mainTitle = plan.destinationName 
+    ? `Trip Plan for ${plan.destinationName}` 
+    : plan.tripTitle;
+  
+  const subTitle = plan.destinationName && plan.tripTitle !== mainTitle && plan.tripTitle !== plan.destinationName
+    ? `(${plan.tripTitle})`
+    : null;
+
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-headline text-center text-primary">{plan.tripTitle}</h2>
+      <h2 className="text-3xl font-headline text-center text-primary">{mainTitle}</h2>
+      {subTitle && (
+        <p className="text-center text-muted-foreground text-sm -mt-4 mb-4">{subTitle}</p>
+      )}
 
       {plan.itinerary && plan.itinerary.length > 0 && (
         <Card className="shadow-md glassmorphic-card">
@@ -89,4 +101,3 @@ export default function ItineraryDisplay({ plan }: ItineraryDisplayProps) {
     </div>
   );
 }
-

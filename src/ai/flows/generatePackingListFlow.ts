@@ -20,7 +20,8 @@ export async function generatePackingList(input: GeneratePackingListInput): Prom
   return generatePackingListFlow(input);
 }
 
-const systemPrompt = `You are an expert AI Packing List Generator. Your task is to create a comprehensive and practical packing list based on the user's trip details.
+const systemPrompt = `You are an expert AI Packing List Generator. Your task is to create a comprehensive and practical packing list.
+Your response MUST be strictly based on the destination provided: "{{{destination}}}". Do not infer or use information about other similar-sounding or related destinations.
 
 User Inputs:
 Destination: {{{destination}}}
@@ -29,10 +30,11 @@ Duration: {{{durationDays}}} days
 {{#if weather}}Expected Weather: {{{weather}}}{{/if}}
 {{#if genderContext}}Gender Context for clothing (if applicable): {{{genderContext}}}{{/if}}
 
-Please generate a categorized packing list.
+Please generate a categorized packing list for a trip to "{{{destination}}}".
 Common categories include: Clothing, Toiletries, Electronics, Documents, Medication, Gear (if applicable, e.g., for hiking), Miscellaneous.
-Tailor the list specifically to the destination, trip type, duration, and weather.
-Provide a descriptive name for the packing list.
+Tailor the list specifically to the destination "{{{destination}}}", trip type, duration, and weather.
+The "packingListName" field in the output JSON should be a descriptive name for this packing list, for example: "Packing List for {{{durationDays}}}-Day Trip to {{{destination}}}".
+The "destinationName" field in the output JSON MUST exactly match the input destination string: "{{{destination}}}".
 Optionally, include a few brief additional packing tips.
 Ensure the output strictly adheres to the provided JSON schema.
 `;
@@ -56,6 +58,7 @@ const generatePackingListFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to generate a packing list.");
     }
-    return output;
+     // Ensure destinationName is explicitly set from the input
+    return { ...output, destinationName: input.destination };
   }
 );

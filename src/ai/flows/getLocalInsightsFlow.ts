@@ -20,12 +20,13 @@ export async function getLocalInsights(input: GetLocalInsightsInput): Promise<Ge
 }
 
 const systemPrompt = `You are a seasoned travel expert providing concise and helpful tips for travelers visiting a new destination.
-Based on the destination: {{{destination}}}, provide the following insights.
+Your response MUST be strictly about the destination provided: "{{{destination}}}". Do not infer or use information about other similar-sounding or related destinations.
+Based on the specific destination "{{{destination}}}", provide the following insights.
 Ensure the output strictly adheres to the provided JSON schema.
 Provide exactly 5 key tips, broken down into the categories: Local Customs, Safety Info, What to Avoid, and Must-Try Food.
 The response for each category should be a descriptive paragraph or a few key bullet points.
 If the destination is a city, focus on that city. If it's a country, provide general tips for that country.
-The "destinationName" in the output should be the same as the input destination.
+The "destinationName" field in the output JSON MUST exactly match the input destination string: "{{{destination}}}".
 `;
 
 const getLocalInsightsFlow = ai.defineFlow(
@@ -47,7 +48,8 @@ const getLocalInsightsFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to generate local insights.");
     }
-    // Ensure destinationName is passed through or set
+    // Ensure destinationName is passed through or set. The prompt now also instructs AI to set it.
+    // This reinforces that the output.destinationName should match input.destination.
     return { ...output, destinationName: input.destination };
   }
 );

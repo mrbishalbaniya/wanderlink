@@ -10,9 +10,21 @@ interface PackingListDisplayProps {
 }
 
 export default function PackingListDisplay({ list }: PackingListDisplayProps) {
+  // Determine the main title based on whether destinationName is present and different from packingListName
+  const mainTitle = list.destinationName
+    ? `Packing List for ${list.destinationName}`
+    : list.packingListName;
+
+  const subTitle = list.destinationName && list.packingListName !== mainTitle && list.packingListName !== list.destinationName
+    ? `(${list.packingListName})`
+    : null;
+
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-headline text-center text-primary">{list.packingListName}</h2>
+      <h2 className="text-3xl font-headline text-center text-primary">{mainTitle}</h2>
+      {subTitle && (
+         <p className="text-center text-muted-foreground text-sm -mt-4 mb-4">{subTitle}</p>
+      )}
 
       {list.categories && list.categories.length > 0 && (
         <Card className="shadow-md glassmorphic-card">

@@ -34,6 +34,7 @@ export const PlanTripInputSchema = z.object({
 
 
 export const PlanTripOutputSchema = z.object({
+  destinationName: z.string().describe("The specific destination the plan is for, matching the user input."),
   tripTitle: z.string().describe("A catchy and descriptive title for the overall trip plan (e.g., '5-Day Pokhara Adventure for Nature Lovers')."),
   itinerary: z.array(ItineraryItemSchema).describe('A day-by-day itinerary for the trip.'),
   travelTips: z.string().describe('General travel tips relevant to the destination and trip type (e.g., transportation advice, currency, what to pack briefly if not covered by a separate packing list request). Should be a paragraph or bullet points.'),
@@ -59,6 +60,7 @@ export const GeneratePackingListInputSchema = z.object({
 });
 
 export const GeneratePackingListOutputSchema = z.object({
+  destinationName: z.string().describe("The specific destination the packing list is for, matching user input."),
   packingListName: z.string().describe("A descriptive name for this packing list (e.g., 'Packing List for 5-Day Pokhara Trek')."),
   categories: z.array(PackingListCategorySchema).describe("An array of packing list categories, each containing items."),
   additionalTips: z.string().describe("Any additional brief tips related to packing for this specific trip (e.g., 'Roll clothes to save space', 'Carry a photocopy of your passport').").optional(),
@@ -70,7 +72,7 @@ export const GetLocalInsightsInputSchema = z.object({
 });
 
 export const GetLocalInsightsOutputSchema = z.object({
-  destinationName: z.string().describe("The name of the destination for which insights are provided."),
+  destinationName: z.string().describe("The name of the destination for which insights are provided. This MUST match the user's input destination."),
   localCustoms: z.string().describe("Tips related to local customs, etiquette, and cultural sensitivities."),
   safetyInfo: z.string().describe("Important safety information, common scams to be aware of, and emergency contacts if applicable."),
   whatToAvoid: z.string().describe("Things to avoid doing or saying, or places to be cautious about."),
@@ -84,8 +86,8 @@ export const GetWeatherSuggestionsInputSchema = z.object({
 });
 
 export const GetWeatherSuggestionsOutputSchema = z.object({
-  destinationName: z.string().describe("The name of the destination."),
-  dateContext: z.string().describe("The date or date range for which suggestions are provided."),
+  destinationName: z.string().describe("The name of the destination. This MUST match the user's input destination."),
+  dateContext: z.string().describe("The date or date range for which suggestions are provided. This MUST match the user's input date context."),
   weatherOverview: z.string().describe("A brief overview of the expected weather conditions based on typical patterns for the location and date. This is a general expectation, not a live forecast."),
   suitableActivities: z.string().describe("Suggestions for activities suitable for the typical weather during that time."),
   packingChanges: z.string().describe("Recommendations for specific clothing or gear to pack based on the typical weather."),

@@ -43,11 +43,13 @@ export async function planTrip(clientInput: PlanTripInput): Promise<PlanTripOutp
   return planTripFlowInstance(flowInput);
 }
 
-const systemPrompt = `You are an expert AI Trip Planner. Your goal is to create a comprehensive and engaging travel plan based on the user's preferences.
+const systemPrompt = `You are an expert AI Trip Planner. Your goal is to create a comprehensive and engaging travel plan.
+Your response MUST be strictly about the destination provided by the user. Do not infer or use information about other similar-sounding or related destinations.
+Base your plan on the specific destination: "{{{destination}}}".
 
 Generate a detailed itinerary, practical travel tips, and suggest extra places or activities.
 If budget information is provided, also give a rough estimated cost breakdown (e.g., "Accommodation: 40%, Food: 25%, Activities: 25%, Local Travel: 10%").
-Ensure the output strictly adheres to the provided JSON schema.
+Ensure the output strictly adheres to the provided JSON schema. The "destinationName" field in the output JSON MUST exactly match the input destination: "{{{destination}}}".
 Consider the number of people when suggesting activities and accommodations. Try to balance active days with rest/relaxation.
 
 User Inputs:
@@ -64,7 +66,7 @@ Structure the itinerary clearly day by day.
 Provide actionable travel tips.
 Suggest other relevant places or activities.
 If a budget is mentioned, provide an estimated cost breakdown (e.g., Accommodation: X%, Food: Y%, Activities: Z%).
-The trip title should be creative and reflect the essence of the trip.
+The trip title should be creative and reflect the essence of the trip to "{{{destination}}}".
 `;
 
 // This is the Genkit flow instance
@@ -87,7 +89,8 @@ const planTripFlowInstance = ai.defineFlow(
     if (!output) {
         throw new Error("AI failed to generate a trip plan.");
     }
-    return output;
+    // Ensure destinationName is explicitly set from the input to guarantee accuracy for display
+    return { ...output, destinationName: internalFlowInput.destination };
   }
 );
 

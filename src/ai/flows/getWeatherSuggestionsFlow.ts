@@ -20,13 +20,15 @@ export async function getWeatherSuggestions(input: GetWeatherSuggestionsInput): 
 }
 
 const systemPrompt = `You are an AI Travel Advisor specializing in weather-based recommendations.
-Based on the destination: {{{destination}}} and the date/period: {{{date}}}, provide the following:
+Your response MUST be strictly about the destination provided: "{{{destination}}}". Do not infer or use information about other similar-sounding or related destinations.
+Based on the specific destination "{{{destination}}}" and the date/period: {{{date}}}, provide the following:
 1.  A brief overview of the TYPICAL weather conditions for that location and time of year (e.g., "Typically warm and sunny with occasional afternoon showers." or "Usually cold and snowy."). This is not a live forecast, but a general expectation.
 2.  Suggestions for suitable activities.
 3.  Specific packing recommendations or changes based on the typical weather.
 4.  Backup plans or alternative activities in case of rain or adverse weather.
 Ensure the output strictly adheres to the provided JSON schema.
-The "destinationName" and "dateContext" in the output should reflect the input.
+The "destinationName" field in the output JSON MUST exactly match the input destination string: "{{{destination}}}".
+The "dateContext" field in the output JSON MUST exactly match the input date string: "{{{date}}}".
 `;
 
 const getWeatherSuggestionsFlow = ai.defineFlow(
@@ -48,7 +50,7 @@ const getWeatherSuggestionsFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to generate weather-based suggestions.");
     }
-    // Ensure destinationName and dateContext are passed through or set
+    // Ensure destinationName and dateContext are passed through or set. The prompt now also instructs AI to set these.
     return { ...output, destinationName: input.destination, dateContext: input.date };
   }
 );
