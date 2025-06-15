@@ -46,7 +46,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     setIsLiked(currentUser && post.likes ? post.likes.includes(currentUser.uid) : false);
     setLikeCount(post.likes ? post.likes.length : 0);
     setIsSaved(currentUser && post.savedBy ? post.savedBy.includes(currentUser.uid) : false);
-    setShowFullCaption(isDetailedView); // Ensure detailed view respects prop
+    setShowFullCaption(isDetailedView); 
   }, [post.likes, post.savedBy, currentUser, isDetailedView]);
 
   const handleLike = async (e: React.MouseEvent) => {
@@ -115,9 +115,9 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onPostClickForDialog) { // Always open dialog for comments if handler exists
+    if (onPostClickForDialog) { 
       onPostClickForDialog(post);
-    } else if (isDetailedView) { // If already in detailed view, focus input
+    } else if (isDetailedView) { 
       const commentInputId = `comment-input-${post.id}` || `comment-input-map-${post.id}`;
       document.getElementById(commentInputId)?.focus();
     }
@@ -171,21 +171,6 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   const commentCount = post.commentCount ?? 0;
 
   const captionIsLong = post.caption.length > CAPTION_TRUNCATE_LENGTH;
-  const displayCaption = (showFullCaption || isDetailedView || !captionIsLong) 
-    ? post.caption 
-    : `${post.caption.substring(0, CAPTION_TRUNCATE_LENGTH)}...`;
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Allow clicks on specific interactive elements to proceed without opening dialog
-    if ((e.target as HTMLElement).closest('button, a, input, textarea, [role="menuitem"], [role="menu"], .caption-toggle')) {
-        return;
-    }
-    // If not interacting with a specific element, and a dialog handler exists, open dialog.
-    // This is mainly for opening the comments dialog.
-    if (onPostClickForDialog) {
-      onPostClickForDialog(post);
-    }
-  };
   
   const handleAuthorProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -201,13 +186,12 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     setShowFullCaption(prev => !prev);
   };
 
-
   return (
-    <Card className="w-full overflow-hidden glassmorphic-card shadow-lg rounded-xl" onClick={handleCardClick} role={!isDetailedView ? "button" : undefined} tabIndex={!isDetailedView ? 0 : undefined}>
+    <Card className="w-full overflow-hidden glassmorphic-card shadow-lg rounded-xl" role={!isDetailedView ? "article" : undefined} tabIndex={!isDetailedView ? -1 : undefined}>
       <CardHeader className="flex flex-row items-center justify-between space-x-3 p-3 md:p-4">
         <div className="flex items-center space-x-3 cursor-pointer" onClick={handleAuthorProfileClick}>
           <Avatar className="h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
-            <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait" />
+            <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait"/>
             <AvatarFallback className="text-base md:text-lg bg-muted text-muted-foreground">{userName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
@@ -248,7 +232,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
          <Carousel className="w-full" opts={{ loop: post.images.length > 1 }}>
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
-              <CarouselItem key={index} onClick={!isDetailedView ? () => onPostClickForDialog?.(post) : undefined} className={!isDetailedView && onPostClickForDialog ? "cursor-pointer" : ""}>
+              <CarouselItem key={index} onClick={!isDetailedView && onPostClickForDialog ? (e) => { e.stopPropagation(); onPostClickForDialog(post); } : undefined} className={!isDetailedView && onPostClickForDialog ? "cursor-pointer" : ""}>
                 <div className="relative aspect-square w-full">
                   <Image 
                     src={imgUrl} 
@@ -336,11 +320,11 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
             {userUsername}
           </span>
           <span className="ml-1">
-            {displayCaption}
+            {showFullCaption || isDetailedView || !captionIsLong ? post.caption : `${post.caption.substring(0, CAPTION_TRUNCATE_LENGTH)}`}
           </span>
           {!isDetailedView && captionIsLong && (
-            <button onClick={toggleCaption} className="caption-toggle text-muted-foreground hover:text-foreground text-xs ml-1 font-medium">
-              {showFullCaption ? 'Read less' : '' /* "Read more" is part of the truncated text */}
+            <button onClick={toggleCaption} className="caption-toggle text-muted-foreground hover:text-foreground text-xs ml-1 font-medium whitespace-nowrap">
+              {showFullCaption ? ' Read less' : '...Read more'}
             </button>
           )}
         </div>
@@ -356,3 +340,4 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     </Card>
   );
 }
+
