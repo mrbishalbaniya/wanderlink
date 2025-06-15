@@ -27,9 +27,11 @@ interface PostCardProps {
   post: Post;
   onLikeUpdate?: (postId: string, newLikes: string[]) => void;
   onSaveUpdate?: (postId: string, newSavedBy: string[]) => void;
-  onPostClickForDialog?: (post: Post) => void; // Renamed from onPostClickForSheet
-  isDetailedView?: boolean; // To control some behavior if in a dialog/modal
+  onPostClickForDialog?: (post: Post) => void;
+  isDetailedView?: boolean; 
 }
+
+const CAPTION_TRUNCATE_LENGTH = 100;
 
 export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClickForDialog, isDetailedView = false }: PostCardProps) {
   const { currentUser } = useAuth();
@@ -44,7 +46,8 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     setIsLiked(currentUser && post.likes ? post.likes.includes(currentUser.uid) : false);
     setLikeCount(post.likes ? post.likes.length : 0);
     setIsSaved(currentUser && post.savedBy ? post.savedBy.includes(currentUser.uid) : false);
-  }, [post.likes, post.savedBy, currentUser]);
+    setShowFullCaption(isDetailedView); // Ensure detailed view respects prop
+  }, [post.likes, post.savedBy, currentUser, isDetailedView]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -112,9 +115,9 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onPostClickForDialog && !isDetailedView) {
+    if (onPostClickForDialog) { // Always open dialog for comments if handler exists
       onPostClickForDialog(post);
-    } else if (isDetailedView) {
+    } else if (isDetailedView) { // If already in detailed view, focus input
       const commentInputId = `comment-input-${post.id}` || `comment-input-map-${post.id}`;
       document.getElementById(commentInputId)?.focus();
     }
@@ -167,25 +170,35 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   const userAvatar = post.user?.avatar || `https://placehold.co/40x40.png?text=${userName.charAt(0)}`;
   const commentCount = post.commentCount ?? 0;
 
-  const captionNeedsTruncation = post.caption.length > 100 && !isDetailedView;
+  const captionIsLong = post.caption.length > CAPTION_TRUNCATE_LENGTH;
+  const displayCaption = (showFullCaption || isDetailedView || !captionIsLong) 
+    ? post.caption 
+    : `${post.caption.substring(0, CAPTION_TRUNCATE_LENGTH)}...`;
 
   const handleCardClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button, a, input, textarea, [role="menuitem"], [role="menu"]')) {
+    // Allow clicks on specific interactive elements to proceed without opening dialog
+    if ((e.target as HTMLElement).closest('button, a, input, textarea, [role="menuitem"], [role="menu"], .caption-toggle')) {
         return;
     }
-    if (onPostClickForDialog && !isDetailedView) {
+    // If not interacting with a specific element, and a dialog handler exists, open dialog.
+    // This is mainly for opening the comments dialog.
+    if (onPostClickForDialog) {
       onPostClickForDialog(post);
     }
   };
-
+  
   const handleAuthorProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log(`Navigate to profile of: ${post.user?.uid || userUsername}`);
     toast({
       title: "Profile Navigation (Placeholder)", 
       description: `Would navigate to ${userUsername}'s profile. This feature is not yet implemented.`,
       className: "bg-primary text-primary-foreground"
     });
+  };
+
+  const toggleCaption = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowFullCaption(prev => !prev);
   };
 
 
@@ -219,12 +232,12 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
                   Open in Google Maps
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Report post", post.id); toast({title: "Report (Placeholder)", description:"Post reporting not implemented yet."})}}>Report</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); toast({title: "Report (Placeholder)", description:"Post reporting not implemented yet."})}}>Report</DropdownMenuItem>
                 {currentUser?.uid === post.userId && (
                     <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Edit post", post.id); toast({title: "Edit (Placeholder)", description:"Post editing not implemented yet."})}}>Edit Post</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={(e) => {e.stopPropagation(); console.log("Delete post", post.id); toast({title: "Delete (Placeholder)", description:"Post deletion not implemented yet."})}}>Delete Post</DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {e.stopPropagation(); toast({title: "Edit (Placeholder)", description:"Post editing not implemented yet."})}}>Edit Post</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={(e) => {e.stopPropagation(); toast({title: "Delete (Placeholder)", description:"Post deletion not implemented yet."})}}>Delete Post</DropdownMenuItem>
                     </>
                 )}
             </DropdownMenuContent>
@@ -235,7 +248,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
          <Carousel className="w-full" opts={{ loop: post.images.length > 1 }}>
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
-              <CarouselItem key={index} onClick={!isDetailedView ? () => onPostClickForDialog?.(post) : undefined} className={!isDetailedView ? "cursor-pointer" : ""}>
+              <CarouselItem key={index} onClick={!isDetailedView ? () => onPostClickForDialog?.(post) : undefined} className={!isDetailedView && onPostClickForDialog ? "cursor-pointer" : ""}>
                 <div className="relative aspect-square w-full">
                   <Image 
                     src={imgUrl} 
@@ -322,30 +335,24 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
           <span className="font-semibold cursor-pointer hover:underline" onClick={handleAuthorProfileClick}>
             {userUsername}
           </span>
-          <span className={`ml-1 ${showFullCaption || isDetailedView ? '' : 'line-clamp-2'}`}>
-            {post.caption}
+          <span className="ml-1">
+            {displayCaption}
           </span>
-          {captionNeedsTruncation && !showFullCaption && !isDetailedView && (
-            <button onClick={(e) => { e.stopPropagation(); setShowFullCaption(true); }} className="text-muted-foreground hover:text-foreground text-xs ml-1">
-              more
+          {!isDetailedView && captionIsLong && (
+            <button onClick={toggleCaption} className="caption-toggle text-muted-foreground hover:text-foreground text-xs ml-1 font-medium">
+              {showFullCaption ? 'Read less' : '' /* "Read more" is part of the truncated text */}
             </button>
           )}
         </div>
 
-        {!isDetailedView && commentCount > 0 && (
-          <p onClick={(e) => { e.stopPropagation(); if (onPostClickForDialog) onPostClickForDialog(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
-            View all {commentCount} comments
+        {!isDetailedView && (
+          <p onClick={handleCommentClick} className="text-sm text-muted-foreground cursor-pointer hover:underline">
+            {commentCount > 0 ? `View all ${commentCount} comments` : 'Add a comment...'}
           </p>
         )}
-         {!isDetailedView && commentCount === 0 && (
-             <p onClick={(e) => { e.stopPropagation(); if (onPostClickForDialog) onPostClickForDialog(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
-                Add a comment...
-             </p>
-         )}
 
         <p className="text-xs text-muted-foreground pt-1">{timeAgo}</p>
       </div>
     </Card>
   );
 }
-
