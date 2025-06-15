@@ -147,16 +147,24 @@ export default function MapPage() {
         }
 
         if (data.userId) {
-          const userRef = doc(db, 'users', data.userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            comment.user = {
-              uid: userSnap.id,
-              name: userData.name || 'User',
-              username: userData.username,
-              avatar: userData.avatar || `https://placehold.co/40x40.png?text=${(userData.name || 'U').charAt(0)}`,
-            };
+           try {
+            const userRef = doc(db, 'users', data.userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              comment.user = {
+                uid: userSnap.id,
+                name: userData.name || 'User',
+                username: userData.username,
+                avatar: userData.avatar || `https://placehold.co/40x40.png?text=${(userData.name || 'U').charAt(0)}`,
+              };
+            } else {
+              console.warn(`User profile for commenter ${data.userId} not found on comment ${comment.id} (map view).`);
+              comment.user = { uid: data.userId, name: 'Unknown User', avatar: `https://placehold.co/40x40.png?text=?` };
+            }
+          } catch (userFetchError) {
+            console.error(`Error fetching profile for commenter ${data.userId} on comment ${comment.id} (map view):`, userFetchError);
+            comment.user = { uid: data.userId, name: 'Error Loading User', avatar: `https://placehold.co/40x40.png?text=E` };
           }
         }
         return comment;
@@ -178,12 +186,7 @@ export default function MapPage() {
         setSelectedPostForDialog(postToView);
         fetchCommentsForSelectedPost(postToView.id); 
     } else {
-        // If post not found in current loaded posts, maybe it's just the ID from a direct link
-        // In this case, we could try fetching it individually or rely on a full page redirect to handle it.
-        // For now, assume it's for posts already loaded on the map.
-        // If using query params, this logic might need adjustment or a separate fetch for the specific post ID.
         console.warn("Post ID from marker click not found in local posts array:", postId);
-        // router.push(`/?postId=${postId}`); // This would take to home, consider behavior for map
     }
   }, [posts, fetchCommentsForSelectedPost]);
   
@@ -243,6 +246,7 @@ export default function MapPage() {
   };
 
   const handleUserProfileClick = (userId?: string, username?: string) => {
+    e.stopPropagation();
     if (!userId) return;
     console.log(`Navigate to profile of user ID: ${userId}, Username: ${username || 'N/A'}`);
     toast({
@@ -268,7 +272,7 @@ export default function MapPage() {
         <p className="text-sm text-muted-foreground">Explore shared experiences from around the world.</p>
       </div>
 
-      <div className="flex-1 overflow-hidden relative rounded-xl shadow-soft-lg z-10"> {/* Added z-10 */}
+      <div className="flex-1 overflow-hidden relative rounded-xl shadow-soft-lg z-10">
         {posts.length === 0 && !loading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-muted rounded-xl">
                 <Globe size={80} className="text-muted-foreground/30 mb-6" />
@@ -301,7 +305,7 @@ export default function MapPage() {
                 <DialogTitle className="text-lg font-semibold text-center">{selectedPostForDialog.title}</DialogTitle>
                 {selectedPostForDialog.user && (
                      <DialogDescription className="text-xs text-muted-foreground text-center">
-                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={() => handleUserProfileClick(selectedPostForDialog.user?.uid, selectedPostForDialog.user?.username)}>{selectedPostForDialog.user.username || selectedPostForDialog.user.name}</span>
+                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(selectedPostForDialog.user?.uid, selectedPostForDialog.user?.username)}>{selectedPostForDialog.user.username || selectedPostForDialog.user.name}</span>
                      </DialogDescription>
                 )}
               </DialogHeader>
@@ -317,7 +321,7 @@ export default function MapPage() {
                 <div className="px-4 py-3 border-t border-border/30">
                   <h3 className="text-md font-semibold mb-3 text-foreground flex items-center">
                     <MessageSquare className="h-5 w-5 mr-2 text-primary" />
-                    Comments ({selectedPostForDialog.commentCount || 0})
+                    Comments ({selectedPostForDialog.commentCount || selectedPostComments?.length || 0})
                   </h3>
                   {isLoadingComments ? (
                     <div className="flex justify-center items-center py-4">
@@ -327,13 +331,13 @@ export default function MapPage() {
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                       {selectedPostComments.map(comment => (
                         <div key={comment.id} className="flex items-start space-x-2.5 text-sm">
-                           <Avatar className="h-7 w-7 cursor-pointer" onClick={() => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                           <Avatar className="h-7 w-7 cursor-pointer" onClick={(e) => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
                             <AvatarImage src={comment.user?.avatar} alt={comment.user?.name} data-ai-hint="person avatar"/>
                             <AvatarFallback className="text-xs bg-muted text-muted-foreground">{comment.user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
                           <div>
                             <p>
-                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={() => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
                                 {comment.user?.username || comment.user?.name}
                               </span>
                               <span className="text-foreground/90 ml-1.5">{comment.text}</span>

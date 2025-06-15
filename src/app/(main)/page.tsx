@@ -133,10 +133,10 @@ export default function HomePage() {
   const fetchCommentsForPost = useCallback(async (postId: string) => {
     if (!postId) return;
     setIsLoadingComments(true);
-    setSelectedPostComments([]); // Clear previous comments
+    setSelectedPostComments([]); 
     try {
       const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
-      const q = query(commentsCollectionRef, orderBy('createdAt', 'desc'), limit(20)); // Fetch latest 20 comments
+      const q = query(commentsCollectionRef, orderBy('createdAt', 'desc'), limit(20));
       const commentsSnapshot = await getDocs(q);
       
       const commentsDataPromises = commentsSnapshot.docs.map(async (commentDoc) => {
@@ -148,21 +148,30 @@ export default function HomePage() {
           text: data.text,
           createdAt: data.createdAt,
         };
+
         if (data.createdAt && data.createdAt instanceof Timestamp) {
           comment.createdAtDate = data.createdAt.toDate();
         }
 
         if (data.userId) {
-          const userRef = doc(db, 'users', data.userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            comment.user = {
-              uid: userSnap.id,
-              name: userData.name || 'User',
-              username: userData.username,
-              avatar: userData.avatar || `https://placehold.co/40x40.png?text=${(userData.name || 'U').charAt(0)}`,
-            };
+          try {
+            const userRef = doc(db, 'users', data.userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              comment.user = {
+                uid: userSnap.id,
+                name: userData.name || 'User',
+                username: userData.username,
+                avatar: userData.avatar || `https://placehold.co/40x40.png?text=${(userData.name || 'U').charAt(0)}`,
+              };
+            } else {
+              console.warn(`User profile for commenter ${data.userId} not found on comment ${comment.id}.`);
+              comment.user = { uid: data.userId, name: 'Unknown User', avatar: `https://placehold.co/40x40.png?text=?` };
+            }
+          } catch (userFetchError) {
+            console.error(`Error fetching profile for commenter ${data.userId} on comment ${comment.id}:`, userFetchError);
+            comment.user = { uid: data.userId, name: 'Error Loading User', avatar: `https://placehold.co/40x40.png?text=E` };
           }
         }
         return comment;
@@ -170,8 +179,8 @@ export default function HomePage() {
       const resolvedComments = await Promise.all(commentsDataPromises);
       setSelectedPostComments(resolvedComments);
     } catch (error) {
-      console.error("Error fetching comments:", error);
-      toast({ title: "Error", description: "Could not fetch comments.", variant: "destructive" });
+      console.error("Error fetching comments for post:", postId, error);
+      toast({ title: "Error", description: "Could not fetch comments. Please check your connection or try again later.", variant: "destructive" });
     } finally {
       setIsLoadingComments(false);
     }
@@ -184,7 +193,7 @@ export default function HomePage() {
         setSelectedPost(postToSelect);
         fetchCommentsForPost(postToSelect.id);
       } else {
-         router.replace(pathname, { scroll: false }); // Remove invalid postId
+         router.replace(pathname, { scroll: false }); 
       }
     }
   }, [posts, loading, postIdFromQuery, router, pathname, selectedPost, fetchCommentsForPost]); 
@@ -236,7 +245,7 @@ export default function HomePage() {
       toast({ title: "Cannot Post", description: "Comment text cannot be empty.", variant: "destructive" });
       return;
     }
-    // Placeholder for actual comment submission
+    
     console.log(`Posting comment by ${currentUser.uid} on post ${selectedPost.id}: ${newCommentText}`);
     toast({ 
       title: "Comment Submitted (Placeholder)", 
@@ -247,6 +256,7 @@ export default function HomePage() {
   };
 
   const handleUserProfileClick = (userId?: string, username?: string) => {
+    e.stopPropagation();
     if (!userId) return;
     console.log(`Navigate to profile of user ID: ${userId}, Username: ${username || 'N/A'}`);
     toast({
@@ -316,18 +326,18 @@ export default function HomePage() {
                 <DialogTitle className="text-lg font-semibold text-center">{selectedPost.title}</DialogTitle>
                 {selectedPost.user && (
                      <DialogDescription className="text-xs text-muted-foreground text-center">
-                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={() => handleUserProfileClick(selectedPost.user?.uid, selectedPost.user?.username)}>{selectedPost.user.username || selectedPost.user.name}</span>
+                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(selectedPost.user?.uid, selectedPost.user?.username)}>{selectedPost.user.username || selectedPost.user.name}</span>
                      </DialogDescription>
                 )}
               </DialogHeader>
               <ScrollArea className="flex-1 min-h-0">
-                <div className="p-1"> {/* Padding for the card inside scroll area */}
+                <div className="p-1"> 
                   <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} isDetailedView={true}/>
                 </div>
                 <div className="px-4 py-3 border-t border-border/30">
                   <h3 className="text-md font-semibold mb-3 text-foreground flex items-center">
                     <MessageSquare className="h-5 w-5 mr-2 text-primary" />
-                    Comments ({selectedPost.commentCount || 0})
+                    Comments ({selectedPost.commentCount || selectedPostComments?.length || 0})
                   </h3>
                   {isLoadingComments ? (
                     <div className="flex justify-center items-center py-4">
@@ -337,13 +347,13 @@ export default function HomePage() {
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                       {selectedPostComments.map(comment => (
                         <div key={comment.id} className="flex items-start space-x-2.5 text-sm">
-                          <Avatar className="h-7 w-7 cursor-pointer" onClick={() => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                          <Avatar className="h-7 w-7 cursor-pointer" onClick={(e) => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
                             <AvatarImage src={comment.user?.avatar} alt={comment.user?.name} data-ai-hint="person avatar"/>
                             <AvatarFallback className="text-xs bg-muted text-muted-foreground">{comment.user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
                           <div>
                             <p>
-                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={() => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={(e) => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
                                 {comment.user?.username || comment.user?.name}
                               </span>
                               <span className="text-foreground/90 ml-1.5">{comment.text}</span>
