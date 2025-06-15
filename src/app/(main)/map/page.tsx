@@ -256,7 +256,7 @@ export default function MapPage() {
         <p className="text-sm text-muted-foreground">Explore shared experiences from around the world.</p>
       </div>
 
-      <div className="flex-1 overflow-hidden relative rounded-xl shadow-soft-lg">
+      <div className="flex-1 overflow-hidden relative rounded-xl shadow-soft-lg z-10"> {/* Added z-10 */}
         {posts.length === 0 && !loading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-muted rounded-xl">
                 <Globe size={80} className="text-muted-foreground/30 mb-6" />
@@ -279,7 +279,7 @@ export default function MapPage() {
         open={!!selectedPostForDialog} 
         onOpenChange={handleDialogOnOpenChange}
       >
-        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh]"> {/* z-50 is default here */}
           {selectedPostForDialog && (
             <>
               <DialogHeader className="p-4 pb-2 border-b border-border/30">
@@ -290,7 +290,7 @@ export default function MapPage() {
                      </DialogDescription>
                 )}
               </DialogHeader>
-              <ScrollArea className="flex-1 min-h-0">
+              <ScrollArea className="flex-1 min-h-0"> {/* Added min-h-0 */}
                 <div className="p-1">
                   <PostCard 
                     post={selectedPostForDialog} 
