@@ -290,7 +290,7 @@ export default function MapPage() {
                      </DialogDescription>
                 )}
               </DialogHeader>
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 min-h-0">
                 <div className="p-1">
                   <PostCard 
                     post={selectedPostForDialog} 
