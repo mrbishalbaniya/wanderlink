@@ -13,7 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Changed from DestinationCombobox for destination
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -26,7 +26,6 @@ import { type PlanTripInput, type PlanTripOutput, planTrip } from '@/ai/flows';
 import { PlanTripInputSchema } from '@/ai/schemas';
 import ItineraryDisplay from './ItineraryDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DestinationCombobox } from './DestinationCombobox';
 
 export default function TripPlannerForm() {
   const { toast } = useToast();
@@ -90,10 +89,9 @@ export default function TripPlannerForm() {
                 <FormItem className="flex flex-col">
                   <FormLabel>Destination</FormLabel>
                   <FormControl>
-                    <DestinationCombobox
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Select a destination"
+                    <Input
+                      placeholder="Enter a destination (e.g., Pokhara, Nepal)"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />

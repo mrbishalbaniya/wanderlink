@@ -12,6 +12,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input'; // Changed from DestinationCombobox
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
@@ -19,7 +20,6 @@ import { type GetLocalInsightsInput, type GetLocalInsightsOutput, getLocalInsigh
 import { GetLocalInsightsInputSchema } from '@/ai/schemas';
 import LocalInsightsDisplay from './LocalInsightsDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DestinationCombobox } from './DestinationCombobox';
 
 export default function LocalInsightsForm() {
   const { toast } = useToast();
@@ -71,10 +71,9 @@ export default function LocalInsightsForm() {
                 <FormItem className="flex flex-col">
                   <FormLabel>Destination (City or Country)</FormLabel>
                   <FormControl>
-                     <DestinationCombobox
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Select or type destination"
+                     <Input
+                      placeholder="Enter destination (e.g., Pokhara, Nepal)"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />

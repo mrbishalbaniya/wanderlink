@@ -1,95 +1,123 @@
+'use client';
 
-"use client"
-
-import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
-
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { Button } from '@/components/ui/button';
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input'; // Changed from DestinationCombobox
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+import { Loader2, CloudLightning } from 'lucide-react';
+import { type GetWeatherSuggestionsInput, type GetWeatherSuggestionsOutput, getWeatherSuggestions } from '@/ai/flows';
+import { GetWeatherSuggestionsInputSchema } from '@/ai/schemas';
+import WeatherSuggestionsDisplay from './WeatherSuggestionsDisplay';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const destinations = [
-  { value: "pokhara, nepal", label: "Pokhara, Nepal" },
-  { value: "kathmandu, nepal", label: "Kathmandu, Nepal" },
-  { value: "chitwan national park, nepal", label: "Chitwan National Park, Nepal" },
-  { value: "lumbini, nepal", label: "Lumbini, Nepal" },
-  { value: "everest base camp, nepal", label: "Everest Base Camp, Nepal" },
-  { value: "annapurna circuit, nepal", label: "Annapurna Circuit, Nepal" },
-  { value: "paris, france", label: "Paris, France" },
-  { value: "rome, italy", label: "Rome, Italy" },
-  { value: "bali, indonesia", label: "Bali, Indonesia" },
-  { value: "tokyo, japan", label: "Tokyo, Japan" },
-  { value: "new york city, usa", label: "New York City, USA" },
-  { value: "london, uk", label: "London, UK" },
-  { value: "barcelona, spain", label: "Barcelona, Spain" },
-  { value: "amsterdam, netherlands", label: "Amsterdam, Netherlands" },
-  { value: "phuket, thailand", label: "Phuket, Thailand" },
-];
+export default function WeatherSuggestionsForm() {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<GetWeatherSuggestionsOutput | null>(null);
 
-interface DestinationComboboxProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}
+  const form = useForm<GetWeatherSuggestionsInput>({
+    resolver: zodResolver(GetWeatherSuggestionsInputSchema),
+    defaultValues: {
+      destination: '',
+      date: '',
+    },
+  });
 
-export function DestinationCombobox({ value, onChange, placeholder = "Select destination..." }: DestinationComboboxProps) {
-  const [open, setOpen] = React.useState(false)
+  async function onSubmit(values: GetWeatherSuggestionsInput) {
+    setIsLoading(true);
+    setSuggestions(null);
+    try {
+      const result = await getWeatherSuggestions(values);
+      setSuggestions(result);
+      toast({
+        title: 'Weather Suggestions Ready!',
+        description: `Suggestions for ${values.destination} around ${values.date} are below.`,
+        className: 'bg-accent text-accent-foreground',
+      });
+    } catch (error: any) {
+      console.error('Error generating weather suggestions:', error);
+      toast({
+        title: 'Error Generating Suggestions',
+        description: error.message || 'Could not generate suggestions. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between font-normal"
-        >
-          {value
-            ? destinations.find((destination) => destination.value === value)?.label
-            : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder="Search destination..." />
-          <CommandList>
-            <CommandEmpty>No destination found.</CommandEmpty>
-            <CommandGroup>
-              {destinations.map((destination) => (
-                <CommandItem
-                  key={destination.value}
-                  value={destination.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue)
-                    setOpen(false)
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === destination.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {destination.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  )
+    <Card className="w-full max-w-2xl mx-auto shadow-xl glassmorphic-card">
+      <CardHeader>
+        <CardTitle className="text-2xl font-headline text-primary text-center">Weather-Based Travel Advice</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="destination"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Destination</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter destination"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date or Period</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Next Monday, 2024-12-25, Mid-July" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" className="w-full text-lg py-3 bg-accent hover:bg-accent/90" disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <CloudLightning className="mr-2 h-5 w-5" />
+              )}
+              Get Weather Advice
+            </Button>
+          </form>
+        </Form>
+
+        {isLoading && (
+          <div className="mt-8 text-center">
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+            <p className="mt-2 text-muted-foreground">Checking the weather patterns...</p>
+          </div>
+        )}
+
+        {suggestions && !isLoading && (
+          <div className="mt-8 pt-6 border-t border-border/50">
+            <WeatherSuggestionsDisplay suggestions={suggestions} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

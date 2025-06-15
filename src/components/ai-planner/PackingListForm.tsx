@@ -13,7 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Changed from DestinationCombobox for destination
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -22,7 +22,6 @@ import { type GeneratePackingListInput, type GeneratePackingListOutput, generate
 import { GeneratePackingListInputSchema } from '@/ai/schemas'; 
 import PackingListDisplay from './PackingListDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DestinationCombobox } from './DestinationCombobox';
 
 export default function PackingListForm() {
   const { toast } = useToast();
@@ -82,10 +81,9 @@ export default function PackingListForm() {
                 <FormItem className="flex flex-col">
                   <FormLabel>Destination</FormLabel>
                   <FormControl>
-                    <DestinationCombobox
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Select a destination"
+                    <Input
+                      placeholder="Enter a destination (e.g., Paris, France)"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
