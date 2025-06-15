@@ -10,13 +10,13 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Loader2, Globe, MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import type { Map as LeafletMap } from 'leaflet';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'; 
 import Image from 'next/image';
@@ -34,7 +34,7 @@ export default function MapPage() {
   const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPostForSheet, setSelectedPostForSheet] = useState<Post | null>(null);
+  const [selectedPostForDialog, setSelectedPostForDialog] = useState<Post | null>(null);
   const [selectedPostComments, setSelectedPostComments] = useState<CommentType[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
@@ -175,38 +175,38 @@ export default function MapPage() {
     mapRefForPopupClose.current?.closePopup(); 
     const postToView = posts.find(p => p.id === postId);
     if (postToView) {
-        setSelectedPostForSheet(postToView);
-        fetchCommentsForSelectedPost(postToView.id); // Fetch comments when post is selected
+        setSelectedPostForDialog(postToView);
+        fetchCommentsForSelectedPost(postToView.id); 
     } else {
-        router.push(`/?postId=${postId}`); // Fallback if post not in current map data (should ideally not happen)
+        router.push(`/?postId=${postId}`); 
     }
   }, [posts, router, fetchCommentsForSelectedPost]);
   
-  const handleLikeUpdateInSheet = useCallback((postId: string, newLikes: string[]) => {
+  const handleLikeUpdateInDialog = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
       currentPosts.map(p => 
         p.id === postId ? { ...p, likes: newLikes } : p
       )
     );
-     if (selectedPostForSheet && selectedPostForSheet.id === postId) {
-      setSelectedPostForSheet(prev => prev ? { ...prev, likes: newLikes } : null);
+     if (selectedPostForDialog && selectedPostForDialog.id === postId) {
+      setSelectedPostForDialog(prev => prev ? { ...prev, likes: newLikes } : null);
     }
-  }, [selectedPostForSheet]);
+  }, [selectedPostForDialog]);
 
-  const handleSaveUpdateInSheet = useCallback((postId: string, newSavedBy: string[]) => {
+  const handleSaveUpdateInDialog = useCallback((postId: string, newSavedBy: string[]) => {
     setPosts(currentPosts =>
       currentPosts.map(p =>
         p.id === postId ? { ...p, savedBy: newSavedBy } : p
       )
     );
-    if (selectedPostForSheet && selectedPostForSheet.id === postId) {
-      setSelectedPostForSheet(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
+    if (selectedPostForDialog && selectedPostForDialog.id === postId) {
+      setSelectedPostForDialog(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
     }
-  }, [selectedPostForSheet]);
+  }, [selectedPostForDialog]);
 
-  const handleSheetOpenChange = useCallback((isOpen: boolean) => {
+  const handleDialogOnOpenChange = useCallback((isOpen: boolean) => {
     if (!isOpen) {
-        setSelectedPostForSheet(null);
+        setSelectedPostForDialog(null);
         setSelectedPostComments([]);
         setNewCommentText('');
          if (postIdFromQuery) { 
@@ -224,11 +224,11 @@ export default function MapPage() {
       toast({ title: "Login Required", description: "Please login to comment.", variant: "destructive" });
       return;
     }
-    if (!selectedPostForSheet || !newCommentText.trim()) {
+    if (!selectedPostForDialog || !newCommentText.trim()) {
       toast({ title: "Cannot Post", description: "Comment text cannot be empty.", variant: "destructive" });
       return;
     }
-    console.log(`Posting comment by ${currentUser.uid} on post ${selectedPostForSheet.id}: ${newCommentText}`);
+    console.log(`Posting comment by ${currentUser.uid} on post ${selectedPostForDialog.id}: ${newCommentText}`);
     toast({ title: "Comment Posted (Placeholder)", description: "Actual submission to be implemented." });
     setNewCommentText('');
   };
@@ -275,34 +275,34 @@ export default function MapPage() {
         )}
       </div>
       
-      <Sheet 
-        open={!!selectedPostForSheet} 
-        onOpenChange={handleSheetOpenChange}
+      <Dialog 
+        open={!!selectedPostForDialog} 
+        onOpenChange={handleDialogOnOpenChange}
       >
-        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000] flex flex-col" side="right">
-          {selectedPostForSheet && (
+        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+          {selectedPostForDialog && (
             <>
-              <SheetHeader className="p-4 pb-2 border-b border-border/30">
-                <SheetTitle className="text-lg font-semibold text-center">{selectedPostForSheet.title}</SheetTitle>
-                {selectedPostForSheet.user && (
-                     <SheetDescription className="text-xs text-muted-foreground text-center">
-                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={() => handleUserProfileClick(selectedPostForSheet.user?.uid, selectedPostForSheet.user?.username)}>{selectedPostForSheet.user.username || selectedPostForSheet.user.name}</span>
-                     </SheetDescription>
+              <DialogHeader className="p-4 pb-2 border-b border-border/30">
+                <DialogTitle className="text-lg font-semibold text-center">{selectedPostForDialog.title}</DialogTitle>
+                {selectedPostForDialog.user && (
+                     <DialogDescription className="text-xs text-muted-foreground text-center">
+                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={() => handleUserProfileClick(selectedPostForDialog.user?.uid, selectedPostForDialog.user?.username)}>{selectedPostForDialog.user.username || selectedPostForDialog.user.name}</span>
+                     </DialogDescription>
                 )}
-              </SheetHeader>
+              </DialogHeader>
               <ScrollArea className="flex-1">
                 <div className="p-1">
                   <PostCard 
-                    post={selectedPostForSheet} 
-                    onLikeUpdate={handleLikeUpdateInSheet} 
-                    onSaveUpdate={handleSaveUpdateInSheet}
+                    post={selectedPostForDialog} 
+                    onLikeUpdate={handleLikeUpdateInDialog} 
+                    onSaveUpdate={handleSaveUpdateInDialog}
                     isDetailedView={true}
                   />
                 </div>
                 <div className="px-4 py-3 border-t border-border/30">
                   <h3 className="text-md font-semibold mb-3 text-foreground flex items-center">
                     <MessageSquare className="h-5 w-5 mr-2 text-primary" />
-                    Comments ({selectedPostForSheet.commentCount || 0})
+                    Comments ({selectedPostForDialog.commentCount || 0})
                   </h3>
                   {isLoadingComments ? (
                     <div className="flex justify-center items-center py-4">
@@ -335,7 +335,7 @@ export default function MapPage() {
                   )}
                 </div>
               </ScrollArea>
-              <SheetFooter className="p-4 border-t border-border/30 bg-background/80 backdrop-blur-sm">
+              <DialogFooter className="p-4 border-t border-border/30 bg-background/80 backdrop-blur-sm">
                 <div className="flex items-start space-x-2 w-full">
                  {currentUser && (
                     <Avatar className="h-8 w-8 mt-1">
@@ -346,7 +346,7 @@ export default function MapPage() {
                     </Avatar>
                   )}
                   <Textarea
-                    id={`comment-input-map-${selectedPostForSheet.id}`}
+                    id={`comment-input-map-${selectedPostForDialog.id}`}
                     placeholder="Add a comment..."
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
@@ -357,16 +357,17 @@ export default function MapPage() {
                   <Button onClick={handlePostCommentOnMap} size="sm" className="h-10" disabled={!currentUser || !newCommentText.trim()}>Post</Button>
                 </div>
                  {!currentUser && <p className="text-xs text-muted-foreground text-center w-full pt-1">Please <Link href="/login" className="text-primary hover:underline">login</Link> to comment.</p>}
-              </SheetFooter>
+              </DialogFooter>
             </>
           )}
-          {!selectedPostForSheet && (
+          {!selectedPostForDialog && (
              <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">No post selected for map view.</p>
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

@@ -9,13 +9,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { Loader2, Compass, PlusCircle, MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter, // Added SheetFooter
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -189,7 +189,7 @@ export default function HomePage() {
     }
   }, [posts, loading, postIdFromQuery, router, pathname, selectedPost, fetchCommentsForPost]); 
 
-  const handlePostCardClickForSheet = useCallback((post: Post) => {
+  const handlePostCardClickForDialog = useCallback((post: Post) => {
     setSelectedPost(post);
     fetchCommentsForPost(post.id);
   }, [fetchCommentsForPost]);
@@ -216,7 +216,7 @@ export default function HomePage() {
     }
   }, [selectedPost]);
 
-  const handleSheetOpenChange = useCallback((isOpen: boolean) => {
+  const handleDialogOnOpenChange = useCallback((isOpen: boolean) => {
     if (!isOpen) {
       setSelectedPost(null);
       setSelectedPostComments([]);
@@ -292,28 +292,28 @@ export default function HomePage() {
                 post={post} 
                 onLikeUpdate={handleLikeUpdateInHome} 
                 onSaveUpdate={handleSaveUpdateInHome} 
-                onPostClickForSheet={handlePostCardClickForSheet}
+                onPostClickForSheet={handlePostCardClickForDialog}
               />
             ))}
           </div>
         )}
       </ScrollArea>
       
-      <Sheet 
+      <Dialog 
         open={!!selectedPost} 
-        onOpenChange={handleSheetOpenChange}
+        onOpenChange={handleDialogOnOpenChange}
       >
-        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000] flex flex-col" side="right">
+        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh]">
           {selectedPost && (
             <>
-              <SheetHeader className="p-4 pb-2 border-b border-border/30">
-                <SheetTitle className="text-lg font-semibold text-center">{selectedPost.title}</SheetTitle>
+              <DialogHeader className="p-4 pb-2 border-b border-border/30">
+                <DialogTitle className="text-lg font-semibold text-center">{selectedPost.title}</DialogTitle>
                 {selectedPost.user && (
-                     <SheetDescription className="text-xs text-muted-foreground text-center">
+                     <DialogDescription className="text-xs text-muted-foreground text-center">
                         Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={() => handleUserProfileClick(selectedPost.user?.uid, selectedPost.user?.username)}>{selectedPost.user.username || selectedPost.user.name}</span>
-                     </SheetDescription>
+                     </DialogDescription>
                 )}
-              </SheetHeader>
+              </DialogHeader>
               <ScrollArea className="flex-1">
                 <div className="p-1"> {/* Padding for the card inside scroll area */}
                   <PostCard post={selectedPost} onLikeUpdate={handleLikeUpdateInHome} onSaveUpdate={handleSaveUpdateInHome} isDetailedView={true}/>
@@ -354,7 +354,7 @@ export default function HomePage() {
                   )}
                 </div>
               </ScrollArea>
-              <SheetFooter className="p-4 border-t border-border/30 bg-background/80 backdrop-blur-sm">
+              <DialogFooter className="p-4 border-t border-border/30 bg-background/80 backdrop-blur-sm">
                 <div className="flex items-start space-x-2 w-full">
                   {currentUser && (
                     <Avatar className="h-8 w-8 mt-1">
@@ -376,16 +376,17 @@ export default function HomePage() {
                   <Button onClick={handlePostComment} size="sm" className="h-10" disabled={!currentUser || !newCommentText.trim()}>Post</Button>
                 </div>
                 {!currentUser && <p className="text-xs text-muted-foreground text-center w-full pt-1">Please <Link href="/login" className="text-primary hover:underline">login</Link> to comment.</p>}
-              </SheetFooter>
+              </DialogFooter>
             </>
           )}
-           {!selectedPost && ( // Fallback if sheet is open but post somehow isn't selected
+           {!selectedPost && ( 
             <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">No post selected.</p>
             </div>
            )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
