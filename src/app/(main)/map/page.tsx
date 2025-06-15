@@ -4,10 +4,10 @@
 import InteractiveMap from '@/components/map/InteractiveMap';
 import PostCard from '@/components/posts/PostCard';
 import { db } from '@/lib/firebase';
-import type { Post, UserProfile } from '@/types';
-import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp } from 'firebase/firestore';
+import type { Post, UserProfile, Comment as CommentType, UserProfileLite } from '@/types';
+import { collection, getDocs, orderBy, query, doc, getDoc, Timestamp, limit } from 'firebase/firestore';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Loader2, Globe } from 'lucide-react';
+import { Loader2, Globe, MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -15,15 +15,29 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  SheetFooter,
 } from "@/components/ui/sheet";
 import type { Map as LeafletMap } from 'leaflet';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'; 
 import Image from 'next/image';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
+
 
 export default function MapPage() {
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPostForSheet, setSelectedPostForSheet] = useState<Post | null>(null);
+  const [selectedPostComments, setSelectedPostComments] = useState<CommentType[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
   const mapRefForPopupClose = useRef<LeafletMap | null>(null);
   
   const router = useRouter();
@@ -109,15 +123,64 @@ export default function MapPage() {
     fetchPosts();
   }, [fetchPosts]);
 
+
+  const fetchCommentsForSelectedPost = useCallback(async (postId: string) => {
+    if (!postId) return;
+    setIsLoadingComments(true);
+    setSelectedPostComments([]);
+    try {
+      const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
+      const q = query(commentsCollectionRef, orderBy('createdAt', 'desc'), limit(20));
+      const commentsSnapshot = await getDocs(q);
+      
+      const commentsDataPromises = commentsSnapshot.docs.map(async (commentDoc) => {
+        const data = commentDoc.data();
+        const comment: CommentType = {
+          id: commentDoc.id,
+          postId: postId,
+          userId: data.userId,
+          text: data.text,
+          createdAt: data.createdAt,
+        };
+        if (data.createdAt && data.createdAt instanceof Timestamp) {
+          comment.createdAtDate = data.createdAt.toDate();
+        }
+
+        if (data.userId) {
+          const userRef = doc(db, 'users', data.userId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            comment.user = {
+              uid: userSnap.id,
+              name: userData.name || 'User',
+              username: userData.username,
+              avatar: userData.avatar || `https://placehold.co/40x40.png?text=${(userData.name || 'U').charAt(0)}`,
+            };
+          }
+        }
+        return comment;
+      });
+      const resolvedComments = await Promise.all(commentsDataPromises);
+      setSelectedPostComments(resolvedComments);
+    } catch (error) {
+      console.error("Error fetching comments for map post:", error);
+      toast({ title: "Error", description: "Could not fetch comments.", variant: "destructive" });
+    } finally {
+      setIsLoadingComments(false);
+    }
+  }, [toast]);
+
   const handlePostMarkerClickOnMap = useCallback((postId: string) => {
     mapRefForPopupClose.current?.closePopup(); 
     const postToView = posts.find(p => p.id === postId);
     if (postToView) {
         setSelectedPostForSheet(postToView);
+        fetchCommentsForSelectedPost(postToView.id); // Fetch comments when post is selected
     } else {
-        router.push(`/?postId=${postId}`); 
+        router.push(`/?postId=${postId}`); // Fallback if post not in current map data (should ideally not happen)
     }
-  }, [posts, router, setSelectedPostForSheet]);
+  }, [posts, router, fetchCommentsForSelectedPost]);
   
   const handleLikeUpdateInSheet = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
@@ -128,7 +191,7 @@ export default function MapPage() {
      if (selectedPostForSheet && selectedPostForSheet.id === postId) {
       setSelectedPostForSheet(prev => prev ? { ...prev, likes: newLikes } : null);
     }
-  }, [selectedPostForSheet, setSelectedPostForSheet]);
+  }, [selectedPostForSheet]);
 
   const handleSaveUpdateInSheet = useCallback((postId: string, newSavedBy: string[]) => {
     setPosts(currentPosts =>
@@ -139,20 +202,43 @@ export default function MapPage() {
     if (selectedPostForSheet && selectedPostForSheet.id === postId) {
       setSelectedPostForSheet(prev => prev ? { ...prev, savedBy: newSavedBy } : null);
     }
-  }, [selectedPostForSheet, setSelectedPostForSheet]);
+  }, [selectedPostForSheet]);
 
   const handleSheetOpenChange = useCallback((isOpen: boolean) => {
     if (!isOpen) {
         setSelectedPostForSheet(null);
+        setSelectedPostComments([]);
+        setNewCommentText('');
          if (postIdFromQuery) { 
             router.replace(pathname, { scroll: false }); 
         }
     }
-  }, [postIdFromQuery, router, pathname, setSelectedPostForSheet]);
+  }, [postIdFromQuery, router, pathname]);
 
   const setMapInstanceCb = useCallback((mapInstance: LeafletMap | null) => {
     mapRefForPopupClose.current = mapInstance;
   }, []);
+
+  const handlePostCommentOnMap = async () => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please login to comment.", variant: "destructive" });
+      return;
+    }
+    if (!selectedPostForSheet || !newCommentText.trim()) {
+      toast({ title: "Cannot Post", description: "Comment text cannot be empty.", variant: "destructive" });
+      return;
+    }
+    console.log(`Posting comment by ${currentUser.uid} on post ${selectedPostForSheet.id}: ${newCommentText}`);
+    toast({ title: "Comment Posted (Placeholder)", description: "Actual submission to be implemented." });
+    setNewCommentText('');
+  };
+
+  const handleUserProfileClick = (userId?: string, username?: string) => {
+    if (!userId) return;
+    console.log(`Navigate to profile of user ID: ${userId}, Username: ${username || 'N/A'}`);
+    toast({title: "Profile Navigation", description: `Would navigate to ${username || userId}'s profile.`});
+    // router.push(`/user/${username || userId}`);
+  };
 
 
   if (loading) {
@@ -193,17 +279,91 @@ export default function MapPage() {
         open={!!selectedPostForSheet} 
         onOpenChange={handleSheetOpenChange}
       >
-        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000]" side="right">
+        <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 glassmorphic-card border-none z-[1000] flex flex-col" side="right">
           {selectedPostForSheet && (
-            <ScrollArea className="h-full">
-              <SheetHeader className="p-6 pb-2 sr-only">
-                <SheetTitle className="sr-only">{selectedPostForSheet.title}</SheetTitle>
-                <SheetDescription className="sr-only">Detailed view of: {(selectedPostForSheet.caption || "").substring(0,100)}</SheetDescription>
+            <>
+              <SheetHeader className="p-4 pb-2 border-b border-border/30">
+                <SheetTitle className="text-lg font-semibold text-center">{selectedPostForSheet.title}</SheetTitle>
+                {selectedPostForSheet.user && (
+                     <SheetDescription className="text-xs text-muted-foreground text-center">
+                        Posted by <span className="font-medium text-primary cursor-pointer hover:underline" onClick={() => handleUserProfileClick(selectedPostForSheet.user?.uid, selectedPostForSheet.user?.username)}>{selectedPostForSheet.user.username || selectedPostForSheet.user.name}</span>
+                     </SheetDescription>
+                )}
               </SheetHeader>
-              <div className="p-1">
-                <PostCard post={selectedPostForSheet} onLikeUpdate={handleLikeUpdateInSheet} onSaveUpdate={handleSaveUpdateInSheet}/>
-              </div>
-            </ScrollArea>
+              <ScrollArea className="flex-1">
+                <div className="p-1">
+                  <PostCard 
+                    post={selectedPostForSheet} 
+                    onLikeUpdate={handleLikeUpdateInSheet} 
+                    onSaveUpdate={handleSaveUpdateInSheet}
+                    isDetailedView={true}
+                  />
+                </div>
+                <div className="px-4 py-3 border-t border-border/30">
+                  <h3 className="text-md font-semibold mb-3 text-foreground flex items-center">
+                    <MessageSquare className="h-5 w-5 mr-2 text-primary" />
+                    Comments ({selectedPostForSheet.commentCount || 0})
+                  </h3>
+                  {isLoadingComments ? (
+                    <div className="flex justify-center items-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : selectedPostComments.length > 0 ? (
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                      {selectedPostComments.map(comment => (
+                        <div key={comment.id} className="flex items-start space-x-2.5 text-sm">
+                           <Avatar className="h-7 w-7 cursor-pointer" onClick={() => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                            <AvatarImage src={comment.user?.avatar} alt={comment.user?.name} data-ai-hint="person avatar"/>
+                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">{comment.user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p>
+                              <span className="font-semibold text-foreground cursor-pointer hover:underline" onClick={() => handleUserProfileClick(comment.user?.uid, comment.user?.username)}>
+                                {comment.user?.username || comment.user?.name}
+                              </span>
+                              <span className="text-foreground/90 ml-1.5">{comment.text}</span>
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {comment.createdAtDate ? formatDistanceToNow(comment.createdAtDate, { addSuffix: true }) : 'Replying...'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-3">No comments yet. Be the first!</p>
+                  )}
+                </div>
+              </ScrollArea>
+              <SheetFooter className="p-4 border-t border-border/30 bg-background/80 backdrop-blur-sm">
+                <div className="flex items-start space-x-2 w-full">
+                 {currentUser && (
+                    <Avatar className="h-8 w-8 mt-1">
+                      <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || "User"} data-ai-hint="person avatar"/>
+                      <AvatarFallback className="text-sm bg-muted text-muted-foreground">
+                        {(currentUser.displayName || currentUser.email || "U").charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <Textarea
+                    id={`comment-input-map-${selectedPostForSheet.id}`}
+                    placeholder="Add a comment..."
+                    value={newCommentText}
+                    onChange={(e) => setNewCommentText(e.target.value)}
+                    rows={1}
+                    className="flex-1 min-h-[40px] max-h-[100px] resize-none text-sm bg-input/70 dark:bg-muted/50"
+                    disabled={!currentUser}
+                  />
+                  <Button onClick={handlePostCommentOnMap} size="sm" className="h-10" disabled={!currentUser || !newCommentText.trim()}>Post</Button>
+                </div>
+                 {!currentUser && <p className="text-xs text-muted-foreground text-center w-full pt-1">Please <Link href="/login" className="text-primary hover:underline">login</Link> to comment.</p>}
+              </SheetFooter>
+            </>
+          )}
+          {!selectedPostForSheet && (
+             <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">No post selected for map view.</p>
+            </div>
           )}
         </SheetContent>
       </Sheet>

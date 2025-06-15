@@ -14,7 +14,7 @@ import { arrayRemove, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+// import Link from 'next/link'; // Keep Link for actual navigation later
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,16 +28,17 @@ interface PostCardProps {
   onLikeUpdate?: (postId: string, newLikes: string[]) => void;
   onSaveUpdate?: (postId: string, newSavedBy: string[]) => void;
   onPostClickForSheet?: (post: Post) => void;
+  isDetailedView?: boolean; // To control some behavior if card is in a sheet/modal
 }
 
-export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClickForSheet }: PostCardProps) {
+export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClickForSheet, isDetailedView = false }: PostCardProps) {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
-  const [showFullCaption, setShowFullCaption] = useState(false);
+  const [showFullCaption, setShowFullCaption] = useState(isDetailedView); // Show full caption if in detailed view
 
   useEffect(() => {
     setIsLiked(currentUser && post.likes ? post.likes.includes(currentUser.uid) : false);
@@ -111,15 +112,16 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onPostClickForSheet) {
+    if (onPostClickForSheet && !isDetailedView) {
       onPostClickForSheet(post);
-    } else {
-      toast({ title: "Feature Coming Soon", description: "Detailed view for comments is under development."});
+    } else if (isDetailedView) {
+      // Focus comment input if already in detailed view
+      document.getElementById(`comment-input-${post.id}`)?.focus();
     }
   };
 
   const handleShare = (platform: 'twitter' | 'facebook' | 'whatsapp' | 'linkedin' | 'copy') => {
-    const postUrl = `${window.location.origin}/?postId=${post.id}`;
+    const postUrl = `${window.location.origin}/?postId=${post.id}`; // Adjust if map page uses different query param
     const postTitle = post.title;
     const postCaptionSummary = post.caption.substring(0, 100) + (post.caption.length > 100 ? '...' : '');
 
@@ -157,26 +159,36 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   const userAvatar = post.user?.avatar || `https://placehold.co/40x40.png?text=${userName.charAt(0)}`;
   const commentCount = post.commentCount ?? 0;
 
-  const captionNeedsTruncation = post.caption.length > 100;
+  const captionNeedsTruncation = post.caption.length > 100 && !isDetailedView;
 
-  const handleCardClick = () => {
-    if (onPostClickForSheet) {
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent card click if clicking on an interactive element already
+    if ((e.target as HTMLElement).closest('button, a, input, textarea')) {
+        return;
+    }
+    if (onPostClickForSheet && !isDetailedView) {
       onPostClickForSheet(post);
     }
   };
 
+  const handleAuthorProfileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log(`Navigate to profile of: ${post.user?.uid || userUsername}`);
+    // router.push(`/user/${post.user?.uid || userUsername}`); // Actual navigation
+    toast({title: "Profile Navigation", description: `Would navigate to ${userUsername}'s profile.`});
+  };
+
+
   return (
-    <Card className="w-full overflow-hidden glassmorphic-card shadow-lg rounded-xl">
+    <Card className="w-full overflow-hidden glassmorphic-card shadow-lg rounded-xl" onClick={handleCardClick} role={!isDetailedView ? "button" : undefined} tabIndex={!isDetailedView ? 0 : undefined}>
       <CardHeader className="flex flex-row items-center justify-between space-x-3 p-3 md:p-4">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 cursor-pointer" onClick={handleAuthorProfileClick}>
           <Avatar className="h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
             <AvatarImage src={userAvatar} alt={userName} data-ai-hint="person portrait" />
             <AvatarFallback className="text-base md:text-lg bg-muted text-muted-foreground">{userName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <Link href={`/user/${userUsername}`} passHref>
-              <span className="text-sm font-semibold text-foreground truncate hover:underline cursor-pointer">{userUsername}</span>
-            </Link>
+              <span className="text-sm font-semibold text-foreground truncate hover:underline">{userUsername}</span>
             {post.locationLabel && (
               <p className="text-xs text-muted-foreground flex items-center mt-0.5 truncate" title={post.locationLabel}>
                 <Pin size={11} className="mr-1 flex-shrink-0 text-accent" /> {post.locationLabel}
@@ -184,17 +196,31 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
             )}
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-            <MoreHorizontal size={20}/>
-            <span className="sr-only">More options</span>
-        </Button>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                    <MoreHorizontal size={20}/>
+                    <span className="sr-only">More options</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Report post", post.id)}}>Report</DropdownMenuItem>
+                {currentUser?.uid === post.userId && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Edit post", post.id)}}>Edit Post</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={(e) => {e.stopPropagation(); console.log("Delete post", post.id)}}>Delete Post</DropdownMenuItem>
+                    </>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
       </CardHeader>
       
       {post.images && post.images.length > 0 && (
          <Carousel className="w-full" opts={{ loop: post.images.length > 1 }}>
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
-              <CarouselItem key={index} onClick={handleCardClick} className="cursor-pointer">
+              <CarouselItem key={index} onClick={!isDetailedView ? () => onPostClickForSheet?.(post) : undefined} className={!isDetailedView ? "cursor-pointer" : ""}>
                 <div className="relative aspect-square w-full">
                   <Image 
                     src={imgUrl} 
@@ -231,30 +257,30 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground">
+                <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground" onClick={(e) => e.stopPropagation()}>
                   <Share2 className="h-6 w-6 md:h-7 md:w-7" />
                   <span className="sr-only">Share</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => handleShare('copy')}>
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('copy');}}>
                   <Link2 className="mr-2 h-4 w-4" />
                   Copy Link
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleShare('twitter')}>
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('twitter');}}>
                   <Twitter className="mr-2 h-4 w-4" />
                   Share on X (Twitter)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleShare('facebook')}>
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('facebook');}}>
                   <FacebookIcon className="mr-2 h-4 w-4" />
                   Share on Facebook
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleShare('whatsapp')}>
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('whatsapp');}}>
                   <WhatsAppIcon className="mr-2 h-4 w-4" />
                   Share on WhatsApp
                 </DropdownMenuItem>
-                 <DropdownMenuItem onClick={() => handleShare('linkedin')}>
+                 <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('linkedin');}}>
                   <LinkedinIcon className="mr-2 h-4 w-4" />
                   Share on LinkedIn
                 </DropdownMenuItem>
@@ -274,26 +300,26 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
         <CardTitle className="text-base font-semibold text-foreground">{post.title}</CardTitle>
         
         <div className="text-sm text-foreground/90">
-          <Link href={`/user/${userUsername}`} passHref>
-            <span className="font-semibold cursor-pointer hover:underline">{userUsername}</span>
-          </Link>
-          <span className={`ml-1 ${showFullCaption ? '' : 'line-clamp-2'}`}>
+          <span className="font-semibold cursor-pointer hover:underline" onClick={handleAuthorProfileClick}>
+            {userUsername}
+          </span>
+          <span className={`ml-1 ${showFullCaption || isDetailedView ? '' : 'line-clamp-2'}`}>
             {post.caption}
           </span>
-          {captionNeedsTruncation && !showFullCaption && (
+          {captionNeedsTruncation && !showFullCaption && !isDetailedView && (
             <button onClick={(e) => { e.stopPropagation(); setShowFullCaption(true); }} className="text-muted-foreground hover:text-foreground text-xs ml-1">
               more
             </button>
           )}
         </div>
 
-        {commentCount > 0 && (
-          <p onClick={handleCommentClick} className="text-sm text-muted-foreground cursor-pointer hover:underline">
+        {!isDetailedView && commentCount > 0 && (
+          <p onClick={(e) => { e.stopPropagation(); if (onPostClickForSheet) onPostClickForSheet(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
             View all {commentCount} comments
           </p>
         )}
-         {commentCount === 0 && (
-             <p onClick={handleCommentClick} className="text-sm text-muted-foreground cursor-pointer hover:underline">
+         {!isDetailedView && commentCount === 0 && (
+             <p onClick={(e) => { e.stopPropagation(); if (onPostClickForSheet) onPostClickForSheet(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
                 Add a comment...
              </p>
          )}
@@ -303,4 +329,3 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     </Card>
   );
 }
-

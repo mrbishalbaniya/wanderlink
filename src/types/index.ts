@@ -7,7 +7,25 @@ export interface Coordinates {
 }
 
 export type PostCategory = 'hiking' | 'city' | 'beach' | 'food' | 'culture' | 'nature' | 'other';
-export type TripStatus = 'upcoming' | 'in-progress' | 'completed' | 'cancelled' | 'planning'; // Added 'planning'
+export type TripStatus = 'upcoming' | 'in-progress' | 'completed' | 'cancelled' | 'planning';
+
+// For embedding commenter info efficiently
+export interface UserProfileLite {
+  uid: string;
+  name: string;
+  username?: string;
+  avatar: string;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  text: string;
+  createdAt: Timestamp | Date;
+  user?: UserProfileLite; // Denormalized for quick display
+  createdAtDate?: Date;
+}
 
 export interface Post {
   id: string;
@@ -28,20 +46,23 @@ export interface Post {
   tripStatus?: TripStatus;
   tripStartDate?: Timestamp | Date | null;
   tripEndDate?: Timestamp | Date | null;
-  participants?: string[]; // Array of user UIDs
-  packingList?: string; // Simple text or markdown
+  participants?: string[]; 
+  packingList?: string; 
 
   // Client-side processed dates
   createdAtDate?: Date; 
   tripStartDateDate?: Date | null;
   tripEndDateDate?: Date | null;
+
+  // For holding fetched comments on client
+  fetchedComments?: Comment[];
 }
 
 export type Gender = 'male' | 'female' | 'non-binary' | 'prefer-not-to-say' | '';
 export type InterestedIn = 'men' | 'women' | 'everyone' | '';
 export type TravelStyle = 'adventure' | 'budget' | 'luxury' | 'solo' | 'group' | 'family' | 'business' | 'other' | '';
 export type TransportMode = 'flight' | 'train' | 'car' | 'bus' | 'bicycle' | 'boat' | 'other' | '';
-export type LookingFor = 'friendship' | 'travel-buddy' | 'dating' | 'long-term-relationship' | ''; // Can be an array
+export type LookingFor = 'friendship' | 'travel-buddy' | 'dating' | 'long-term-relationship' | '';
 export type ExpensePreference = 'yes' | 'no' | 'depends' | '';
 export type SimplePreference = 'yes' | 'no' | 'ask' | '';
 
@@ -136,4 +157,3 @@ export interface MatchData {
   timestamp: FieldValue;
   chatId?: string; 
 }
-
