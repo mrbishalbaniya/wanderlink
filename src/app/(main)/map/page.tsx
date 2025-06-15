@@ -369,7 +369,7 @@ export default function MapPage() {
                       <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
                   ) : selectedPostComments.length > 0 ? (
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                    <div className="space-y-3 pr-1"> {/* Removed max-h-60 and overflow-y-auto */}
                       {selectedPostComments.map(comment => (
                         <div key={comment.id} className="flex items-start space-x-2.5 text-sm">
                            <Avatar className="h-7 w-7 cursor-pointer" onClick={(e) => handleUserProfileClick(e, comment.user?.uid, comment.user?.username)}>
