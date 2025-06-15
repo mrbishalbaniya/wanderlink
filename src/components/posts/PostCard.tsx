@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, Bookmark, Pin, MoreHorizontal, Link2,Twitter, FacebookIcon, MessageCircle as WhatsAppIcon, LinkedinIcon } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Pin, MoreHorizontal, Link2,Twitter, FacebookIcon, MessageSquare as WhatsAppIcon, LinkedinIcon, ExternalLink } from 'lucide-react';
 import type { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -27,18 +27,18 @@ interface PostCardProps {
   post: Post;
   onLikeUpdate?: (postId: string, newLikes: string[]) => void;
   onSaveUpdate?: (postId: string, newSavedBy: string[]) => void;
-  onPostClickForSheet?: (post: Post) => void;
-  isDetailedView?: boolean; // To control some behavior if card is in a sheet/modal
+  onPostClickForDialog?: (post: Post) => void; // Renamed from onPostClickForSheet
+  isDetailedView?: boolean; // To control some behavior if in a dialog/modal
 }
 
-export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClickForSheet, isDetailedView = false }: PostCardProps) {
+export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClickForDialog, isDetailedView = false }: PostCardProps) {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
-  const [showFullCaption, setShowFullCaption] = useState(isDetailedView); // Show full caption if in detailed view
+  const [showFullCaption, setShowFullCaption] = useState(isDetailedView); 
 
   useEffect(() => {
     setIsLiked(currentUser && post.likes ? post.likes.includes(currentUser.uid) : false);
@@ -112,16 +112,16 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onPostClickForSheet && !isDetailedView) {
-      onPostClickForSheet(post);
+    if (onPostClickForDialog && !isDetailedView) {
+      onPostClickForDialog(post);
     } else if (isDetailedView) {
-      // Focus comment input if already in detailed view
-      document.getElementById(`comment-input-${post.id}`)?.focus();
+      const commentInputId = `comment-input-${post.id}` || `comment-input-map-${post.id}`;
+      document.getElementById(commentInputId)?.focus();
     }
   };
 
-  const handleShare = (platform: 'twitter' | 'facebook' | 'whatsapp' | 'linkedin' | 'copy') => {
-    const postUrl = `${window.location.origin}/?postId=${post.id}`; // Adjust if map page uses different query param
+  const handleShare = (platform: 'twitter' | 'facebook' | 'whatsapp' | 'linkedin' | 'copy' | 'gmaps') => {
+    const postUrl = `${window.location.origin}/?postId=${post.id}`; 
     const postTitle = post.title;
     const postCaptionSummary = post.caption.substring(0, 100) + (post.caption.length > 100 ? '...' : '');
 
@@ -139,6 +139,14 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
         break;
       case 'linkedin':
         shareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(postUrl)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postCaptionSummary)}`;
+        break;
+      case 'gmaps':
+        if (post.coordinates) {
+          shareUrl = `https://www.google.com/maps/search/?api=1&query=${post.coordinates.latitude},${post.coordinates.longitude}`;
+        } else {
+          toast({ title: "Location Unavailable", description: "This post does not have coordinates to open in Google Maps.", variant: "destructive" });
+          return;
+        }
         break;
       case 'copy':
         navigator.clipboard.writeText(postUrl)
@@ -162,20 +170,22 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
   const captionNeedsTruncation = post.caption.length > 100 && !isDetailedView;
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent card click if clicking on an interactive element already
-    if ((e.target as HTMLElement).closest('button, a, input, textarea')) {
+    if ((e.target as HTMLElement).closest('button, a, input, textarea, [role="menuitem"], [role="menu"]')) {
         return;
     }
-    if (onPostClickForSheet && !isDetailedView) {
-      onPostClickForSheet(post);
+    if (onPostClickForDialog && !isDetailedView) {
+      onPostClickForDialog(post);
     }
   };
 
   const handleAuthorProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log(`Navigate to profile of: ${post.user?.uid || userUsername}`);
-    // router.push(`/user/${post.user?.uid || userUsername}`); // Actual navigation
-    toast({title: "Profile Navigation", description: `Would navigate to ${userUsername}'s profile.`});
+    toast({
+      title: "Profile Navigation (Placeholder)", 
+      description: `Would navigate to ${userUsername}'s profile. This feature is not yet implemented.`,
+      className: "bg-primary text-primary-foreground"
+    });
   };
 
 
@@ -203,13 +213,18 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
                     <span className="sr-only">More options</span>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Report post", post.id)}}>Report</DropdownMenuItem>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('gmaps');}}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open in Google Maps
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Report post", post.id); toast({title: "Report (Placeholder)", description:"Post reporting not implemented yet."})}}>Report</DropdownMenuItem>
                 {currentUser?.uid === post.userId && (
                     <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Edit post", post.id)}}>Edit Post</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={(e) => {e.stopPropagation(); console.log("Delete post", post.id)}}>Delete Post</DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {e.stopPropagation(); console.log("Edit post", post.id); toast({title: "Edit (Placeholder)", description:"Post editing not implemented yet."})}}>Edit Post</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={(e) => {e.stopPropagation(); console.log("Delete post", post.id); toast({title: "Delete (Placeholder)", description:"Post deletion not implemented yet."})}}>Delete Post</DropdownMenuItem>
                     </>
                 )}
             </DropdownMenuContent>
@@ -220,7 +235,7 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
          <Carousel className="w-full" opts={{ loop: post.images.length > 1 }}>
           <CarouselContent>
             {post.images.map((imgUrl, index) => (
-              <CarouselItem key={index} onClick={!isDetailedView ? () => onPostClickForSheet?.(post) : undefined} className={!isDetailedView ? "cursor-pointer" : ""}>
+              <CarouselItem key={index} onClick={!isDetailedView ? () => onPostClickForDialog?.(post) : undefined} className={!isDetailedView ? "cursor-pointer" : ""}>
                 <div className="relative aspect-square w-full">
                   <Image 
                     src={imgUrl} 
@@ -262,25 +277,29 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
                   <span className="sr-only">Share</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('copy');}}>
+              <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={() => handleShare('copy')}>
                   <Link2 className="mr-2 h-4 w-4" />
                   Copy Link
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleShare('gmaps')}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open in Google Maps
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('twitter');}}>
+                <DropdownMenuItem onClick={() => handleShare('twitter')}>
                   <Twitter className="mr-2 h-4 w-4" />
                   Share on X (Twitter)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('facebook');}}>
+                <DropdownMenuItem onClick={() => handleShare('facebook')}>
                   <FacebookIcon className="mr-2 h-4 w-4" />
                   Share on Facebook
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('whatsapp');}}>
+                <DropdownMenuItem onClick={() => handleShare('whatsapp')}>
                   <WhatsAppIcon className="mr-2 h-4 w-4" />
                   Share on WhatsApp
                 </DropdownMenuItem>
-                 <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleShare('linkedin');}}>
+                 <DropdownMenuItem onClick={() => handleShare('linkedin')}>
                   <LinkedinIcon className="mr-2 h-4 w-4" />
                   Share on LinkedIn
                 </DropdownMenuItem>
@@ -314,12 +333,12 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
         </div>
 
         {!isDetailedView && commentCount > 0 && (
-          <p onClick={(e) => { e.stopPropagation(); if (onPostClickForSheet) onPostClickForSheet(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
+          <p onClick={(e) => { e.stopPropagation(); if (onPostClickForDialog) onPostClickForDialog(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
             View all {commentCount} comments
           </p>
         )}
          {!isDetailedView && commentCount === 0 && (
-             <p onClick={(e) => { e.stopPropagation(); if (onPostClickForSheet) onPostClickForSheet(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
+             <p onClick={(e) => { e.stopPropagation(); if (onPostClickForDialog) onPostClickForDialog(post);}} className="text-sm text-muted-foreground cursor-pointer hover:underline">
                 Add a comment...
              </p>
          )}
@@ -329,3 +348,4 @@ export default function PostCard({ post, onLikeUpdate, onSaveUpdate, onPostClick
     </Card>
   );
 }
+

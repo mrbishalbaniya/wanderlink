@@ -189,7 +189,7 @@ export default function HomePage() {
     }
   }, [posts, loading, postIdFromQuery, router, pathname, selectedPost, fetchCommentsForPost]); 
 
-  const handlePostCardClickForDialog = useCallback((post: Post) => {
+  const handlePostClickForDialog = useCallback((post: Post) => {
     setSelectedPost(post);
     fetchCommentsForPost(post.id);
   }, [fetchCommentsForPost]);
@@ -238,16 +238,22 @@ export default function HomePage() {
     }
     // Placeholder for actual comment submission
     console.log(`Posting comment by ${currentUser.uid} on post ${selectedPost.id}: ${newCommentText}`);
-    toast({ title: "Comment Posted (Placeholder)", description: "Actual submission to be implemented." });
-    // In a real app: addDoc to posts/{selectedPost.id}/comments, update commentCount on post, then refetch comments or optimistically update UI.
+    toast({ 
+      title: "Comment Submitted (Placeholder)", 
+      description: "This is a placeholder. Comment saving is not yet implemented.",
+      className: "bg-primary text-primary-foreground"
+    });
     setNewCommentText(''); 
   };
 
   const handleUserProfileClick = (userId?: string, username?: string) => {
     if (!userId) return;
     console.log(`Navigate to profile of user ID: ${userId}, Username: ${username || 'N/A'}`);
-    toast({title: "Profile Navigation", description: `Would navigate to ${username || userId}'s profile.`});
-    // router.push(`/user/${username || userId}`);
+    toast({
+      title: "Profile Navigation (Placeholder)", 
+      description: `Would navigate to ${username || userId}'s profile. This feature is not yet implemented.`,
+      className: "bg-primary text-primary-foreground"
+    });
   };
 
 
@@ -292,7 +298,7 @@ export default function HomePage() {
                 post={post} 
                 onLikeUpdate={handleLikeUpdateInHome} 
                 onSaveUpdate={handleSaveUpdateInHome} 
-                onPostClickForDialog={handlePostCardClickForDialog}
+                onPostClickForDialog={handlePostClickForDialog}
               />
             ))}
           </div>

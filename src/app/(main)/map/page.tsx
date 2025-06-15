@@ -178,9 +178,14 @@ export default function MapPage() {
         setSelectedPostForDialog(postToView);
         fetchCommentsForSelectedPost(postToView.id); 
     } else {
-        router.push(`/?postId=${postId}`); 
+        // If post not found in current loaded posts, maybe it's just the ID from a direct link
+        // In this case, we could try fetching it individually or rely on a full page redirect to handle it.
+        // For now, assume it's for posts already loaded on the map.
+        // If using query params, this logic might need adjustment or a separate fetch for the specific post ID.
+        console.warn("Post ID from marker click not found in local posts array:", postId);
+        // router.push(`/?postId=${postId}`); // This would take to home, consider behavior for map
     }
-  }, [posts, router, fetchCommentsForSelectedPost]);
+  }, [posts, fetchCommentsForSelectedPost]);
   
   const handleLikeUpdateInDialog = useCallback((postId: string, newLikes: string[]) => {
     setPosts(currentPosts => 
@@ -229,15 +234,22 @@ export default function MapPage() {
       return;
     }
     console.log(`Posting comment by ${currentUser.uid} on post ${selectedPostForDialog.id}: ${newCommentText}`);
-    toast({ title: "Comment Posted (Placeholder)", description: "Actual submission to be implemented." });
+    toast({ 
+      title: "Comment Submitted (Placeholder)", 
+      description: "This is a placeholder. Comment saving is not yet implemented.",
+      className: "bg-primary text-primary-foreground"
+    });
     setNewCommentText('');
   };
 
   const handleUserProfileClick = (userId?: string, username?: string) => {
     if (!userId) return;
     console.log(`Navigate to profile of user ID: ${userId}, Username: ${username || 'N/A'}`);
-    toast({title: "Profile Navigation", description: `Would navigate to ${username || userId}'s profile.`});
-    // router.push(`/user/${username || userId}`);
+    toast({
+      title: "Profile Navigation (Placeholder)", 
+      description: `Would navigate to ${username || userId}'s profile. This feature is not yet implemented.`,
+      className: "bg-primary text-primary-foreground"
+    });
   };
 
 
@@ -264,6 +276,9 @@ export default function MapPage() {
                 <p className="text-muted-foreground mb-6 max-w-md">
                 No adventures have been plotted on the map yet. Why not be the first to share yours?
                 </p>
+                 <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <Link href="/create">Share Your Adventure</Link>
+                </Button>
             </div>
         ) : (
             <InteractiveMap 
@@ -279,7 +294,7 @@ export default function MapPage() {
         open={!!selectedPostForDialog} 
         onOpenChange={handleDialogOnOpenChange}
       >
-        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"> {/* z-50 is default here */}
+        <DialogContent className="max-w-xl w-full p-0 glassmorphic-card border-none flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden">
           {selectedPostForDialog && (
             <>
               <DialogHeader className="p-4 pb-2 border-b border-border/30">
